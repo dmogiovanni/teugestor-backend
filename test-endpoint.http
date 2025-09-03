@@ -1,0 +1,65 @@
+### Teste do Endpoint de Criação Manual de Usuários
+
+# Teste com dados válidos
+POST http://localhost:3000/admin/create-user
+Content-Type: application/json
+
+{
+  "name": "Usuário Teste",
+  "email": "teste@exemplo.com",
+  "whatsapp": "+5511999999999",
+  "password": "senha123",
+  "accessPeriodDays": 30
+}
+
+###
+
+# Teste com período de 90 dias
+POST http://localhost:3000/admin/create-user
+Content-Type: application/json
+
+{
+  "name": "Usuário 90 Dias",
+  "email": "usuario90@exemplo.com",
+  "whatsapp": "+5511888888888",
+  "password": "senha456",
+  "accessPeriodDays": 90
+}
+
+###
+
+# Teste com campos faltando (deve retornar erro 400)
+POST http://localhost:3000/admin/create-user
+Content-Type: application/json
+
+{
+  "name": "Usuário Incompleto",
+  "email": "incompleto@exemplo.com"
+}
+
+###
+
+# Teste com período inválido (deve retornar erro 400)
+POST http://localhost:3000/admin/create-user
+Content-Type: application/json
+
+{
+  "name": "Usuário Período Inválido",
+  "email": "periodo@exemplo.com",
+  "whatsapp": "+5511777777777",
+  "password": "senha789",
+  "accessPeriodDays": -5
+}
+
+###
+
+### Teste do Endpoint de Listagem de Usuários
+
+# Listar todos os usuários
+GET http://localhost:3000/admin/users
+
+###
+
+# Listar usuários (com headers de autorização se necessário)
+GET http://localhost:3000/admin/users
+Authorization: Bearer seu-token-aqui
