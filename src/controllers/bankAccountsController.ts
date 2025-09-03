@@ -75,9 +75,16 @@ export const createBankAccount = async (req: AuthenticatedRequest, res: Response
     }
 
     // Verificar permissões de edição
-    const { data: hasFullAccess } = await supabase.rpc('has_full_access', {
-      user_uuid: userId
-    });
+    // Se não é usuário vinculado, tem acesso total
+    let hasFullAccess = !linkedUser;
+    
+    // Se é usuário vinculado, verificar permissões
+    if (linkedUser) {
+      const { data: hasFullAccessResult } = await supabase.rpc('has_full_access', {
+        user_uuid: userId
+      });
+      hasFullAccess = hasFullAccessResult || false;
+    }
 
     if (!hasFullAccess) {
       return res.status(403).json({ error: 'Você não tem permissão para criar contas bancárias' });
@@ -145,9 +152,16 @@ export const updateBankAccount = async (req: AuthenticatedRequest, res: Response
     }
 
     // Verificar permissões de edição
-    const { data: hasFullAccess } = await supabase.rpc('has_full_access', {
-      user_uuid: userId
-    });
+    // Se não é usuário vinculado, tem acesso total
+    let hasFullAccess = !linkedUser;
+    
+    // Se é usuário vinculado, verificar permissões
+    if (linkedUser) {
+      const { data: hasFullAccessResult } = await supabase.rpc('has_full_access', {
+        user_uuid: userId
+      });
+      hasFullAccess = hasFullAccessResult || false;
+    }
 
     if (!hasFullAccess) {
       return res.status(403).json({ error: 'Você não tem permissão para editar contas bancárias' });
@@ -216,9 +230,16 @@ export const deleteBankAccount = async (req: AuthenticatedRequest, res: Response
     }
 
     // Verificar permissões de edição
-    const { data: hasFullAccess } = await supabase.rpc('has_full_access', {
-      user_uuid: userId
-    });
+    // Se não é usuário vinculado, tem acesso total
+    let hasFullAccess = !linkedUser;
+    
+    // Se é usuário vinculado, verificar permissões
+    if (linkedUser) {
+      const { data: hasFullAccessResult } = await supabase.rpc('has_full_access', {
+        user_uuid: userId
+      });
+      hasFullAccess = hasFullAccessResult || false;
+    }
 
     if (!hasFullAccess) {
       return res.status(403).json({ error: 'Você não tem permissão para excluir contas bancárias' });
