@@ -8,12 +8,30 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://teugestor.com.br'],
-  credentials: true
+  origin: [
+    'http://localhost:5173', 
+    'https://teugestor.com.br',
+    'https://www.teugestor.com.br',
+    'http://localhost:3000',
+    'http://localhost:4173'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
 app.get('/', (req: Request, res: Response) => {
   res.send('Teu Gestor Backend rodando!');
+});
+
+// Endpoint de teste CORS
+app.get('/test-cors', (req: Request, res: Response) => {
+  res.status(200).json({
+    message: 'CORS funcionando!',
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin,
+    method: req.method
+  });
 });
 
 // Endpoint de debug para verificar usuários
