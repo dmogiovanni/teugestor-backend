@@ -1,16 +1,17 @@
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { 
   getLinkedUsers, 
   createLinkedUser, 
   updateLinkedUser, 
   deleteLinkedUser 
 } from '../controllers/linkedUsersController';
-import { authenticateToken } from '../middleware/auth';
+import { authenticateToken, AuthenticatedRequest } from '../middleware/auth';
 import { 
   validateRequiredFields, 
   validatePermissionType, 
   validateEmail 
 } from '../middleware/validation';
+import { supabase } from '../utils/supabaseClient';
 
 const router = Router();
 
@@ -38,7 +39,7 @@ router.put('/:id',
 // POST /linked-users/check - Verificar se é usuário vinculado
 router.post('/check', 
   authenticateToken,
-  async (req: AuthenticatedRequest, res: Response) => {
+  async (req: any, res: Response) => {
     try {
       const { userId } = req.body;
       
