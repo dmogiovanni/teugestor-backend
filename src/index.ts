@@ -24,6 +24,16 @@ app.get('/', (req: Request, res: Response) => {
   res.send('Teu Gestor Backend rodando!');
 });
 
+// Endpoint de teste para verificar se o backend está funcionando
+app.get('/health', (req: Request, res: Response) => {
+  res.status(200).json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    message: 'Backend funcionando corretamente',
+    version: '1.0.0'
+  });
+});
+
 // Endpoint de teste CORS
 app.get('/test-cors', (req: Request, res: Response) => {
   res.status(200).json({
