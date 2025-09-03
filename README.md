@@ -1,4 +1,4 @@
-# planejamentonp Backend
+# Teu Gestor Backend
 
 ## Requisitos
 - Node.js 18+

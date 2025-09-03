@@ -8,7 +8,7 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(cors({
-  origin: ['http://localhost:5173', 'https://teugestor.com.br', 'https://apiback.teugestor.com.br'],
+  origin: ['http://localhost:5173', 'https://teugestor.com.br'],
   credentials: true
 }));
 

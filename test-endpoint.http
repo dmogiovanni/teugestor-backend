@@ -1,6 +1,6 @@
 ### Teste do Endpoint de Criação Manual de Usuários
 
-# Teste com dados válidos
+# Teste com dados válidos (Local)
 POST http://localhost:3000/admin/create-user
 Content-Type: application/json
 
@@ -14,8 +14,36 @@ Content-Type: application/json
 
 ###
 
-# Teste com período de 90 dias
+# Teste com dados válidos (Produção)
+POST https://apiback.teugestor.com.br/admin/create-user
+Content-Type: application/json
+
+{
+  "name": "Usuário Teste",
+  "email": "teste@exemplo.com",
+  "whatsapp": "+5511999999999",
+  "password": "senha123",
+  "accessPeriodDays": 30
+}
+
+###
+
+# Teste com período de 90 dias (Local)
 POST http://localhost:3000/admin/create-user
+Content-Type: application/json
+
+{
+  "name": "Usuário 90 Dias",
+  "email": "usuario90@exemplo.com",
+  "whatsapp": "+5511888888888",
+  "password": "senha456",
+  "accessPeriodDays": 90
+}
+
+###
+
+# Teste com período de 90 dias (Produção)
+POST https://apiback.teugestor.com.br/admin/create-user
 Content-Type: application/json
 
 {
@@ -55,8 +83,13 @@ Content-Type: application/json
 
 ### Teste do Endpoint de Listagem de Usuários
 
-# Listar todos os usuários
+# Listar todos os usuários (Local)
 GET http://localhost:3000/admin/users
+
+###
+
+# Listar todos os usuários (Produção)
+GET https://apiback.teugestor.com.br/admin/users
 
 ###
 
