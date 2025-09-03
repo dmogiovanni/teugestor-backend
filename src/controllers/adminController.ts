@@ -40,7 +40,7 @@ export const getUsers = async (req: AuthenticatedRequest, res: Response) => {
 
     // 3. Combinar dados
     const formattedUsers = users.map((user: any) => {
-      const userSubscription = subscriptions?.find(sub => sub.user_id === user.id);
+      const userSubscription = subscriptions?.find((sub: any) => sub.user_id === user.id);
       
       return {
         id: user.id,
