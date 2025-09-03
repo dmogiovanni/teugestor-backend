@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { auth } from '../middleware/auth';
+import { authenticateToken } from '../middleware/auth';
 import {
   getBankAccounts,
   createBankAccount,
@@ -11,7 +11,7 @@ import {
 const router = Router();
 
 // Aplicar middleware de autenticação em todas as rotas
-router.use(auth);
+router.use(authenticateToken);
 
 // Rotas para contas bancárias
 router.get('/', getBankAccounts);

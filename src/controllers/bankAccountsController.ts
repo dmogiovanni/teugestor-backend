@@ -1,12 +1,9 @@
 import { Request, Response } from 'express';
 import { supabase } from '../utils/supabaseClient';
+import { AuthenticatedRequest } from '../middleware/auth';
 
-interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-  };
-}
+// Obter todas as contas bancárias do usuário
+export const getBankAccounts = async (req: AuthenticatedRequest, res: Response) => {
 
 // Obter todas as contas bancárias do usuário
 export const getBankAccounts = async (req: AuthenticatedRequest, res: Response) => {
