@@ -4,9 +4,6 @@ import { AuthenticatedRequest } from '../middleware/auth';
 
 // Obter todas as contas bancárias do usuário
 export const getBankAccounts = async (req: AuthenticatedRequest, res: Response) => {
-
-// Obter todas as contas bancárias do usuário
-export const getBankAccounts = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.id;
     if (!userId) {
