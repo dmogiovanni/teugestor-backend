@@ -229,14 +229,18 @@ router.get('/', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, async (req, res) => {
   try {
     console.log('=== CRIAR TRANSFERÊNCIA ===');
+    console.log('Headers:', req.headers);
     console.log('User ID:', (req as any).user.id);
     console.log('Body:', req.body);
+    console.log('Body type:', typeof req.body);
+    console.log('Body keys:', Object.keys(req.body));
     
     const { from_account_id, to_account_id, amount, date, category, description } = req.body;
 
     // Validações
     if (!from_account_id || !to_account_id || !amount || !date) {
       console.log('Erro: Campos obrigatórios não fornecidos');
+      console.log('Campos recebidos:', { from_account_id, to_account_id, amount, date });
       return res.status(400).json({ error: 'Campos obrigatórios não fornecidos' });
     }
 
