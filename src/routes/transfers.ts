@@ -111,8 +111,14 @@ router.get('/', authenticateToken, async (req, res) => {
       .eq('user_id', effectiveUserId)
       .order('created_at', { ascending: false });
 
+    // Mapear transfer_date para date para compatibilidade com frontend
+    const mappedData = data?.map(transfer => ({
+      ...transfer,
+      date: transfer.transfer_date
+    }));
+
     if (error) throw error;
-    res.json(data || []);
+    res.json(mappedData || []);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar transferências' });
   }
