@@ -22,7 +22,7 @@ router.get('/test-table', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('transfers')
-      .select('count(*)')
+      .select('*')
       .limit(1);
     
     if (error) {
@@ -35,7 +35,8 @@ router.get('/test-table', async (req, res) => {
     res.json({ 
       message: 'Tabela transfers existe e está acessível!',
       timestamp: new Date().toISOString(),
-      data: data
+      data: data,
+      count: data ? data.length : 0
     });
   } catch (error) {
     res.status(500).json({ 
