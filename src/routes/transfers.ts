@@ -17,6 +17,34 @@ router.get('/test', (req, res) => {
   });
 });
 
+// Endpoint para verificar se a tabela transfers existe
+router.get('/test-table', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('transfers')
+      .select('count(*)')
+      .limit(1);
+    
+    if (error) {
+      return res.status(500).json({ 
+        error: 'Erro ao acessar tabela transfers',
+        details: error.message 
+      });
+    }
+    
+    res.json({ 
+      message: 'Tabela transfers existe e está acessível!',
+      timestamp: new Date().toISOString(),
+      data: data
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      error: 'Erro ao verificar tabela transfers',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+});
+
 // Rotas de transferências
 router.get('/', authenticateToken, async (req, res) => {
   try {
