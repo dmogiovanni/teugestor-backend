@@ -1,11 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import { User } from '@supabase/supabase-js';
 import { supabase } from '../utils/supabaseClient';
 
 export interface AuthenticatedRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-  };
+  user?: User;
 }
 
 export const authenticateToken = async (
@@ -32,10 +30,7 @@ export const authenticateToken = async (
     }
 
     // Adicionar usuário ao request
-    req.user = {
-      id: user.id,
-      email: user.email || ''
-    };
+    req.user = user;
 
     next();
   } catch (error) {
