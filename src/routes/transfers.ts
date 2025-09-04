@@ -9,8 +9,16 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Endpoint de teste para verificar se as rotas estão funcionando
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Rotas de transferências funcionando!',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Rotas de transferências
-router.get('/transfers', authenticateToken, async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('transfers')
@@ -29,7 +37,7 @@ router.get('/transfers', authenticateToken, async (req, res) => {
   }
 });
 
-router.post('/transfers', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const { from_account_id, to_account_id, amount, date, category, description } = req.body;
 
@@ -79,7 +87,7 @@ router.post('/transfers', authenticateToken, async (req, res) => {
   }
 });
 
-router.put('/transfers/:id', authenticateToken, async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
@@ -121,7 +129,7 @@ router.put('/transfers/:id', authenticateToken, async (req, res) => {
   }
 });
 
-router.delete('/transfers/:id', authenticateToken, async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -150,7 +158,7 @@ router.delete('/transfers/:id', authenticateToken, async (req, res) => {
 });
 
 // Rota para estatísticas
-router.get('/transfers/stats', authenticateToken, async (req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
   try {
     const { data: transfers, error } = await supabase
       .from('transfers')

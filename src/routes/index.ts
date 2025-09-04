@@ -16,6 +16,6 @@ router.use('/linked-users', linkedUsersRoutes);
 router.use('/bank-accounts', bankAccountsRoutes);
 
 // Rotas de transferências
-router.use('/', transfersRoutes);
+router.use('/transfers', transfersRoutes);
 
 export default router;
