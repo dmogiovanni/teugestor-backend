@@ -1,5 +1,6 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import '../types/express';
 
 const router = express.Router();
 

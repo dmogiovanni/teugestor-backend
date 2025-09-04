@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import './types/express';
 
 dotenv.config();
 
@@ -49,7 +50,7 @@ app.get('/api/transfers', authenticateUser, async (req, res) => {
         from_account:bank_accounts!from_account_id(id, name, is_default),
         to_account:bank_accounts!to_account_id(id, name, is_default)
       `)
-      .or(`user_id.eq.${req.user.id},linked_user_id.eq.${req.user.id}`)
+      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -80,7 +81,7 @@ app.post('/api/transfers', authenticateUser, async (req, res) => {
     const { data: accounts, error: accountsError } = await supabase
       .from('bank_accounts')
       .select('id')
-      .or(`user_id.eq.${req.user.id},linked_user_id.eq.${req.user.id}`)
+      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`)
       .in('id', [from_account_id, to_account_id]);
 
     if (accountsError) throw accountsError;
@@ -119,7 +120,7 @@ app.put('/api/transfers/:id', authenticateUser, async (req, res) => {
       .from('transfers')
       .select('id')
       .eq('id', id)
-      .or(`user_id.eq.${req.user.id},linked_user_id.eq.${req.user.id}`)
+      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`)
       .single();
 
     if (checkError || !existingTransfer) {
@@ -160,7 +161,7 @@ app.delete('/api/transfers/:id', authenticateUser, async (req, res) => {
       .from('transfers')
       .select('id')
       .eq('id', id)
-      .or(`user_id.eq.${req.user.id},linked_user_id.eq.${req.user.id}`)
+      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`)
       .single();
 
     if (checkError || !existingTransfer) {
@@ -185,7 +186,7 @@ app.get('/api/transfers/stats', authenticateUser, async (req, res) => {
     const { data: transfers, error } = await supabase
       .from('transfers')
       .select('amount, from_account_id, to_account_id, date')
-      .or(`user_id.eq.${req.user.id},linked_user_id.eq.${req.user.id}`);
+      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`);
 
     if (error) throw error;
 
