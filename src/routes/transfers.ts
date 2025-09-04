@@ -173,37 +173,65 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, async (req, res) => {
   try {
+    console.log('=== CRIAR TRANSFERÊNCIA ===');
+    console.log('User ID:', (req as any).user.id);
+    console.log('Body:', req.body);
+    
     const { from_account_id, to_account_id, amount, date, category, description } = req.body;
 
     // Validações
     if (!from_account_id || !to_account_id || !amount || !date) {
+      console.log('Erro: Campos obrigatórios não fornecidos');
       return res.status(400).json({ error: 'Campos obrigatórios não fornecidos' });
     }
 
     if (from_account_id === to_account_id) {
+      console.log('Erro: Contas iguais');
       return res.status(400).json({ error: 'As contas de origem e destino devem ser diferentes' });
     }
 
     if (amount <= 0) {
+      console.log('Erro: Valor inválido');
       return res.status(400).json({ error: 'O valor deve ser maior que zero' });
     }
+
+    console.log('Verificando contas...');
+    // Primeiro, verificar se é usuário vinculado
+    const { data: linkedUser } = await supabase
+      .from('linked_users')
+      .select('main_user_id')
+      .eq('linked_user_id', (req as any).user.id)
+      .eq('is_active', true)
+      .single();
+
+    // Determinar o user_id efetivo para a query
+    const effectiveUserId = linkedUser ? linkedUser.main_user_id : (req as any).user.id;
+    console.log('Effective User ID:', effectiveUserId);
 
     // Verificar se as contas pertencem ao usuário
     const { data: accounts, error: accountsError } = await supabase
       .from('poupeja_bank_accounts')
       .select('id')
-      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
+      .eq('user_id', effectiveUserId)
       .in('id', [from_account_id, to_account_id]);
 
-    if (accountsError) throw accountsError;
+    console.log('Resultado verificação contas:', { accounts, accountsError });
+
+    if (accountsError) {
+      console.log('Erro ao verificar contas:', accountsError);
+      throw accountsError;
+    }
+    
     if (!accounts || accounts.length !== 2) {
+      console.log('Erro: Contas inválidas ou não encontradas');
       return res.status(400).json({ error: 'Contas inválidas ou não encontradas' });
     }
 
+    console.log('Inserindo transferência...');
     const { data, error } = await supabase
       .from('transfers')
       .insert({
-        user_id: (req as any).user.id,
+        user_id: effectiveUserId,
         from_account_id,
         to_account_id,
         amount,
@@ -214,10 +242,21 @@ router.post('/', authenticateToken, async (req, res) => {
       .select()
       .single();
 
-    if (error) throw error;
+    console.log('Resultado inserção:', { data, error });
+
+    if (error) {
+      console.log('Erro na inserção:', error);
+      throw error;
+    }
+    
+    console.log('Transferência criada com sucesso:', data);
     res.status(201).json(data);
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao criar transferência' });
+    console.log('Erro geral ao criar transferência:', error);
+    res.status(500).json({ 
+      error: 'Erro ao criar transferência',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
   }
 });
 
