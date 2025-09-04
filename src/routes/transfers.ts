@@ -472,8 +472,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     console.log('Inserindo transferência...');
     
-    // TEMPORARIAMENTE: Desabilitar triggers para evitar erro 500
-    // Vamos inserir apenas a transferência sem criar as transações automáticas
+    // CORREÇÃO: Remover coluna 'category' que não existe na tabela
     const { data, error } = await supabase
       .from('transfers')
       .insert({
@@ -482,7 +481,6 @@ router.post('/', authenticateToken, async (req, res) => {
         to_account_id,
         amount,
         transfer_date: date, // Mapear 'date' para 'transfer_date'
-        category,
         description
       })
       .select()
