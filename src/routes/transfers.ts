@@ -9,6 +9,15 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+// Endpoint de teste sem autenticação
+router.get('/test-no-auth', (req, res) => {
+  res.json({ 
+    message: 'Endpoint de transferências sem autenticação funcionando!',
+    timestamp: new Date().toISOString(),
+    headers: req.headers
+  });
+});
+
 // Endpoint de teste para verificar se as rotas estão funcionando
 router.get('/test', (req, res) => {
   res.json({ 
@@ -53,8 +62,8 @@ router.get('/', authenticateToken, async (req, res) => {
       .from('transfers')
       .select(`
         *,
-        from_account:bank_accounts!from_account_id(id, name, is_default),
-        to_account:bank_accounts!to_account_id(id, name, is_default)
+        from_account:poupeja_bank_accounts!from_account_id(id, name, is_default),
+        to_account:poupeja_bank_accounts!to_account_id(id, name, is_default)
       `)
       .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
       .order('created_at', { ascending: false });
@@ -85,7 +94,7 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Verificar se as contas pertencem ao usuário
     const { data: accounts, error: accountsError } = await supabase
-      .from('bank_accounts')
+      .from('poupeja_bank_accounts')
       .select('id')
       .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
       .in('id', [from_account_id, to_account_id]);
@@ -233,7 +242,7 @@ router.get('/stats', authenticateToken, async (req, res) => {
     // Buscar nome da conta mais ativa
     if (mostActiveAccount) {
       const { data: account } = await supabase
-        .from('bank_accounts')
+        .from('poupeja_bank_accounts')
         .select('name')
         .eq('id', mostActiveAccount.id)
         .single();

@@ -44,6 +44,17 @@ app.get('/test-cors', (req: Request, res: Response) => {
   });
 });
 
+// Endpoint de teste específico para transferências
+app.get('/api/transfers/test-frontend', (req: Request, res: Response) => {
+  res.status(200).json({
+    message: 'Endpoint de transferências acessível pelo frontend!',
+    timestamp: new Date().toISOString(),
+    origin: req.headers.origin,
+    method: req.method,
+    headers: req.headers
+  });
+});
+
 // Usar rotas organizadas
 app.use('/api', routes);
 
