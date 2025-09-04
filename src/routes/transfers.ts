@@ -15,11 +15,24 @@ router.get('/test-frontend-simulation', authenticateToken, async (req, res) => {
     console.log('Teste frontend - User ID:', (req as any).user.id);
     console.log('Teste frontend - Headers:', req.headers);
     
+    const userId = (req as any).user.id;
+    
+    // Primeiro, verificar se é usuário vinculado
+    const { data: linkedUser } = await supabase
+      .from('linked_users')
+      .select('main_user_id')
+      .eq('linked_user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    // Determinar o user_id efetivo para a query
+    const effectiveUserId = linkedUser ? linkedUser.main_user_id : userId;
+    
     // Simular exatamente a query que o frontend está tentando fazer
     const { data, error } = await supabase
       .from('transfers')
       .select('*')
-      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
+      .eq('user_id', effectiveUserId)
       .limit(5);
 
     if (error) {
@@ -27,7 +40,8 @@ router.get('/test-frontend-simulation', authenticateToken, async (req, res) => {
       return res.status(500).json({ 
         error: 'Erro na query de transferências',
         details: error.message,
-        user_id: (req as any).user.id
+        user_id: userId,
+        effective_user_id: effectiveUserId
       });
     }
 
@@ -35,7 +49,8 @@ router.get('/test-frontend-simulation', authenticateToken, async (req, res) => {
       message: 'Query de transferências funcionando!',
       data: data || [],
       count: data ? data.length : 0,
-      user_id: (req as any).user.id
+      user_id: userId,
+      effective_user_id: effectiveUserId
     });
   } catch (error) {
     console.log('Erro geral:', error);
@@ -126,6 +141,19 @@ router.get('/test-table', async (req, res) => {
 // Rotas de transferências
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    const userId = (req as any).user.id;
+    
+    // Primeiro, verificar se é usuário vinculado
+    const { data: linkedUser } = await supabase
+      .from('linked_users')
+      .select('main_user_id')
+      .eq('linked_user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    // Determinar o user_id efetivo para a query
+    const effectiveUserId = linkedUser ? linkedUser.main_user_id : userId;
+
     const { data, error } = await supabase
       .from('transfers')
       .select(`
@@ -133,7 +161,7 @@ router.get('/', authenticateToken, async (req, res) => {
         from_account:poupeja_bank_accounts!from_account_id(id, name, is_default),
         to_account:poupeja_bank_accounts!to_account_id(id, name, is_default)
       `)
-      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
+      .eq('user_id', effectiveUserId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
