@@ -12,9 +12,6 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 // Endpoint de teste que simula exatamente o que o frontend faz
 router.get('/test-frontend-simulation', authenticateToken, async (req, res) => {
   try {
-    console.log('Teste frontend - User ID:', (req as any).user.id);
-    console.log('Teste frontend - Headers:', req.headers);
-    
     const userId = (req as any).user.id;
     
     // Primeiro, verificar se é usuário vinculado
@@ -36,7 +33,6 @@ router.get('/test-frontend-simulation', authenticateToken, async (req, res) => {
       .limit(5);
 
     if (error) {
-      console.log('Erro na query:', error);
       return res.status(500).json({ 
         error: 'Erro na query de transferências',
         details: error.message,
@@ -53,296 +49,8 @@ router.get('/test-frontend-simulation', authenticateToken, async (req, res) => {
       effective_user_id: effectiveUserId
     });
   } catch (error) {
-    console.log('Erro geral:', error);
     res.status(500).json({ 
       error: 'Erro geral na simulação',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
-    });
-  }
-});
-
-// Endpoint de teste com joins (que pode estar falhando)
-router.get('/test-with-joins', authenticateToken, async (req, res) => {
-  try {
-    console.log('Teste joins - User ID:', (req as any).user.id);
-    
-    // Testar a query com joins que pode estar falhando
-    const { data, error } = await supabase
-      .from('transfers')
-      .select(`
-        *,
-        from_account:poupeja_bank_accounts!from_account_id(id, name, is_default),
-        to_account:poupeja_bank_accounts!to_account_id(id, name, is_default)
-      `)
-      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
-      .limit(5);
-
-    if (error) {
-      console.log('Erro na query com joins:', error);
-      return res.status(500).json({ 
-        error: 'Erro na query com joins',
-        details: error.message,
-        user_id: (req as any).user.id
-      });
-    }
-
-    res.json({ 
-      message: 'Query com joins funcionando!',
-      data: data || [],
-      count: data ? data.length : 0,
-      user_id: (req as any).user.id
-    });
-  } catch (error) {
-    console.log('Erro geral com joins:', error);
-    res.status(500).json({ 
-      error: 'Erro geral na simulação com joins',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
-    });
-  }
-});
-
-// Endpoint de teste para criação de transferência sem triggers
-router.post('/test-create', authenticateToken, async (req, res) => {
-  try {
-    console.log('=== TESTE CRIAÇÃO SEM TRIGGERS ===');
-    console.log('User ID:', (req as any).user.id);
-    console.log('Body:', req.body);
-    
-    const { from_account_id, to_account_id, amount, date, category, description } = req.body;
-
-    // Validações básicas
-    if (!from_account_id || !to_account_id || !amount || !date) {
-      return res.status(400).json({ error: 'Campos obrigatórios não fornecidos' });
-    }
-
-    // Determinar effectiveUserId
-    const { data: linkedUser } = await supabase
-      .from('linked_users')
-      .select('main_user_id')
-      .eq('linked_user_id', (req as any).user.id)
-      .eq('is_active', true)
-      .single();
-
-    const effectiveUserId = linkedUser ? linkedUser.main_user_id : (req as any).user.id;
-    console.log('Effective User ID:', effectiveUserId);
-
-    // Testar inserção simples sem triggers
-    const { data, error } = await supabase
-      .from('transfers')
-      .insert({
-        user_id: effectiveUserId,
-        from_account_id,
-        to_account_id,
-        amount,
-        transfer_date: date,
-        category,
-        description
-      })
-      .select()
-      .single();
-
-    console.log('Resultado inserção:', { data, error });
-
-    if (error) {
-      return res.status(500).json({ 
-        error: 'Erro na inserção',
-        details: error.message,
-        code: error.code
-      });
-    }
-
-    res.status(201).json({ 
-      message: 'Transferência criada com sucesso (teste)',
-      data 
-    });
-  } catch (error) {
-    console.log('Erro geral no teste:', error);
-    res.status(500).json({ 
-      error: 'Erro geral no teste',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
-    });
-  }
-});
-
-// Endpoint de teste super simples - apenas validação
-router.post('/test-simple', authenticateToken, async (req, res) => {
-  try {
-    console.log('=== TESTE SUPER SIMPLES ===');
-    console.log('User ID:', (req as any).user.id);
-    console.log('Body recebido:', req.body);
-    console.log('Body type:', typeof req.body);
-    console.log('Body keys:', Object.keys(req.body));
-    console.log('Headers:', req.headers);
-    console.log('Content-Type:', req.headers['content-type']);
-    console.log('Authorization:', req.headers.authorization ? 'Presente' : 'Ausente');
-    
-    // Apenas retornar sucesso com os dados recebidos
-    res.status(200).json({ 
-      message: 'Teste simples funcionou!',
-      received_data: req.body,
-      user_id: (req as any).user.id,
-      headers: {
-        'content-type': req.headers['content-type'],
-        'authorization': req.headers.authorization ? 'Presente' : 'Ausente',
-        'user-agent': req.headers['user-agent']
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.log('Erro no teste simples:', error);
-    res.status(500).json({ 
-      error: 'Erro no teste simples',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
-    });
-  }
-});
-
-// Endpoint para comparar com Postman - recebe exatamente os mesmos dados
-router.post('/test-postman-comparison', authenticateToken, async (req, res) => {
-  try {
-    console.log('=== COMPARAÇÃO COM POSTMAN ===');
-    console.log('User ID:', (req as any).user.id);
-    console.log('Body completo:', JSON.stringify(req.body, null, 2));
-    console.log('Headers completos:', JSON.stringify(req.headers, null, 2));
-    
-    const { from_account_id, to_account_id, amount, date, category, description } = req.body;
-    
-    console.log('Campos extraídos:');
-    console.log('- from_account_id:', from_account_id, typeof from_account_id);
-    console.log('- to_account_id:', to_account_id, typeof to_account_id);
-    console.log('- amount:', amount, typeof amount);
-    console.log('- date:', date, typeof date);
-    console.log('- category:', category, typeof category);
-    console.log('- description:', description, typeof description);
-    
-    // Simular exatamente o que o endpoint principal faz
-    console.log('Simulando validações...');
-    
-    if (!from_account_id || !to_account_id || !amount || !date) {
-      console.log('❌ Validação falhou: Campos obrigatórios');
-      return res.status(400).json({ 
-        error: 'Campos obrigatórios não fornecidos',
-        received: { from_account_id, to_account_id, amount, date }
-      });
-    }
-    
-    if (from_account_id === to_account_id) {
-      console.log('❌ Validação falhou: Contas iguais');
-      return res.status(400).json({ error: 'As contas de origem e destino devem ser diferentes' });
-    }
-    
-    if (amount <= 0) {
-      console.log('❌ Validação falhou: Valor inválido');
-      return res.status(400).json({ error: 'O valor deve ser maior que zero' });
-    }
-    
-    console.log('✅ Todas as validações passaram!');
-    
-    res.status(200).json({ 
-      message: 'Comparação com Postman - todas as validações passaram!',
-      received_data: req.body,
-      user_id: (req as any).user.id,
-      validation_results: {
-        has_required_fields: !!(from_account_id && to_account_id && amount && date),
-        accounts_different: from_account_id !== to_account_id,
-        amount_valid: amount > 0
-      },
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.log('Erro na comparação:', error);
-    res.status(500).json({ 
-      error: 'Erro na comparação com Postman',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
-    });
-  }
-});
-
-// Endpoint para testar inserção SEM triggers (para identificar se o problema são os triggers)
-router.post('/test-insert-no-triggers', authenticateToken, async (req, res) => {
-  try {
-    console.log('=== TESTE INSERÇÃO SEM TRIGGERS ===');
-    console.log('User ID:', (req as any).user.id);
-    console.log('Body:', req.body);
-    
-    const { from_account_id, to_account_id, amount, date, category, description } = req.body;
-
-    // Validações básicas
-    if (!from_account_id || !to_account_id || !amount || !date) {
-      return res.status(400).json({ error: 'Campos obrigatórios não fornecidos' });
-    }
-
-    if (from_account_id === to_account_id) {
-      return res.status(400).json({ error: 'As contas de origem e destino devem ser diferentes' });
-    }
-
-    if (amount <= 0) {
-      return res.status(400).json({ error: 'O valor deve ser maior que zero' });
-    }
-
-    // Determinar effectiveUserId
-    const { data: linkedUser } = await supabase
-      .from('linked_users')
-      .select('main_user_id')
-      .eq('linked_user_id', (req as any).user.id)
-      .eq('is_active', true)
-      .single();
-
-    const effectiveUserId = linkedUser ? linkedUser.main_user_id : (req as any).user.id;
-    console.log('Effective User ID:', effectiveUserId);
-
-    // Verificar se as contas pertencem ao usuário
-    const { data: accounts, error: accountsError } = await supabase
-      .from('poupeja_bank_accounts')
-      .select('id')
-      .eq('user_id', effectiveUserId)
-      .in('id', [from_account_id, to_account_id]);
-
-    if (accountsError) {
-      console.log('Erro ao verificar contas:', accountsError);
-      return res.status(500).json({ 
-        error: 'Erro ao verificar contas',
-        details: accountsError.message
-      });
-    }
-    
-    if (!accounts || accounts.length !== 2) {
-      return res.status(400).json({ error: 'Contas inválidas ou não encontradas' });
-    }
-
-    console.log('Tentando inserção SEM triggers...');
-    
-    // TEMPORARIAMENTE desabilitar triggers para este teste
-    // Usar SQL direto para inserir sem triggers
-    const { data, error } = await supabase.rpc('insert_transfer_without_triggers', {
-      p_user_id: effectiveUserId,
-      p_from_account_id: from_account_id,
-      p_to_account_id: to_account_id,
-      p_amount: amount,
-      p_transfer_date: date,
-      p_category: category,
-      p_description: description
-    });
-
-    console.log('Resultado inserção sem triggers:', { data, error });
-
-    if (error) {
-      console.log('Erro na inserção sem triggers:', error);
-      return res.status(500).json({ 
-        error: 'Erro na inserção sem triggers',
-        details: error.message,
-        code: error.code
-      });
-    }
-
-    res.status(201).json({ 
-      message: 'Transferência criada SEM triggers!',
-      data 
-    });
-  } catch (error) {
-    console.log('Erro geral no teste sem triggers:', error);
-    res.status(500).json({ 
-      error: 'Erro geral no teste sem triggers',
       details: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
@@ -412,33 +120,21 @@ router.get('/', authenticateToken, async (req, res) => {
 
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    console.log('=== CRIAR TRANSFERÊNCIA ===');
-    console.log('Headers:', req.headers);
-    console.log('User ID:', (req as any).user.id);
-    console.log('Body:', req.body);
-    console.log('Body type:', typeof req.body);
-    console.log('Body keys:', Object.keys(req.body));
-    
     const { from_account_id, to_account_id, amount, date, category, description } = req.body;
 
     // Validações
     if (!from_account_id || !to_account_id || !amount || !date) {
-      console.log('Erro: Campos obrigatórios não fornecidos');
-      console.log('Campos recebidos:', { from_account_id, to_account_id, amount, date });
       return res.status(400).json({ error: 'Campos obrigatórios não fornecidos' });
     }
 
     if (from_account_id === to_account_id) {
-      console.log('Erro: Contas iguais');
       return res.status(400).json({ error: 'As contas de origem e destino devem ser diferentes' });
     }
 
     if (amount <= 0) {
-      console.log('Erro: Valor inválido');
       return res.status(400).json({ error: 'O valor deve ser maior que zero' });
     }
 
-    console.log('Verificando contas...');
     // Primeiro, verificar se é usuário vinculado
     const { data: linkedUser } = await supabase
       .from('linked_users')
@@ -449,7 +145,6 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Determinar o user_id efetivo para a query
     const effectiveUserId = linkedUser ? linkedUser.main_user_id : (req as any).user.id;
-    console.log('Effective User ID:', effectiveUserId);
 
     // Verificar se as contas pertencem ao usuário
     const { data: accounts, error: accountsError } = await supabase
@@ -458,21 +153,15 @@ router.post('/', authenticateToken, async (req, res) => {
       .eq('user_id', effectiveUserId)
       .in('id', [from_account_id, to_account_id]);
 
-    console.log('Resultado verificação contas:', { accounts, accountsError });
-
     if (accountsError) {
-      console.log('Erro ao verificar contas:', accountsError);
       throw accountsError;
     }
     
     if (!accounts || accounts.length !== 2) {
-      console.log('Erro: Contas inválidas ou não encontradas');
       return res.status(400).json({ error: 'Contas inválidas ou não encontradas' });
     }
 
-    console.log('Inserindo transferência...');
-    
-    // CORREÇÃO: Remover coluna 'category' que não existe na tabela
+    // Inserir transferência
     const { data, error } = await supabase
       .from('transfers')
       .insert({
@@ -480,34 +169,21 @@ router.post('/', authenticateToken, async (req, res) => {
         from_account_id,
         to_account_id,
         amount,
-        transfer_date: date, // Mapear 'date' para 'transfer_date'
+        transfer_date: date,
         description
       })
       .select()
       .single();
 
-    console.log('Resultado inserção:', { data, error });
-
     if (error) {
-      console.log('Erro na inserção:', error);
-      console.log('Detalhes do erro:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      });
       throw error;
     }
     
-    console.log('Transferência criada com sucesso:', data);
     res.status(201).json(data);
   } catch (error) {
-    console.log('Erro geral ao criar transferência:', error);
-    console.log('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ 
       error: 'Erro ao criar transferência',
-      details: error instanceof Error ? error.message : 'Erro desconhecido',
-      code: (error as any)?.code || 'UNKNOWN'
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
 });
