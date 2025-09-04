@@ -235,7 +235,7 @@ router.post('/', authenticateToken, async (req, res) => {
         from_account_id,
         to_account_id,
         amount,
-        date,
+        transfer_date: date, // Mapear 'date' para 'transfer_date'
         category,
         description
       })
