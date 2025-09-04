@@ -46,6 +46,46 @@ router.get('/test-frontend-simulation', authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint de teste com joins (que pode estar falhando)
+router.get('/test-with-joins', authenticateToken, async (req, res) => {
+  try {
+    console.log('Teste joins - User ID:', (req as any).user.id);
+    
+    // Testar a query com joins que pode estar falhando
+    const { data, error } = await supabase
+      .from('transfers')
+      .select(`
+        *,
+        from_account:poupeja_bank_accounts!from_account_id(id, name, is_default),
+        to_account:poupeja_bank_accounts!to_account_id(id, name, is_default)
+      `)
+      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
+      .limit(5);
+
+    if (error) {
+      console.log('Erro na query com joins:', error);
+      return res.status(500).json({ 
+        error: 'Erro na query com joins',
+        details: error.message,
+        user_id: (req as any).user.id
+      });
+    }
+
+    res.json({ 
+      message: 'Query com joins funcionando!',
+      data: data || [],
+      count: data ? data.length : 0,
+      user_id: (req as any).user.id
+    });
+  } catch (error) {
+    console.log('Erro geral com joins:', error);
+    res.status(500).json({ 
+      error: 'Erro geral na simulação com joins',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+});
+
 // Endpoint de teste para verificar se as rotas estão funcionando
 router.get('/test', (req, res) => {
   res.json({ 
