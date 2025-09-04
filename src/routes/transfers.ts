@@ -1,5 +1,6 @@
 import express from 'express';
 import { createClient } from '@supabase/supabase-js';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -8,30 +9,8 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Middleware para verificar autenticação
-const authenticateUser = async (req: any, res: any, next: any) => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  
-  if (!token) {
-    return res.status(401).json({ error: 'Token não fornecido' });
-  }
-
-  try {
-    const { data: { user }, error } = await supabase.auth.getUser(token);
-    
-    if (error || !user) {
-      return res.status(401).json({ error: 'Token inválido' });
-    }
-
-    req.user = user;
-    next();
-  } catch (error) {
-    return res.status(401).json({ error: 'Erro na autenticação' });
-  }
-};
-
 // Rotas de transferências
-router.get('/transfers', authenticateUser, async (req, res) => {
+router.get('/transfers', authenticateToken, async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('transfers')
@@ -40,7 +19,7 @@ router.get('/transfers', authenticateUser, async (req, res) => {
         from_account:bank_accounts!from_account_id(id, name, is_default),
         to_account:bank_accounts!to_account_id(id, name, is_default)
       `)
-      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`)
+      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -50,7 +29,7 @@ router.get('/transfers', authenticateUser, async (req, res) => {
   }
 });
 
-router.post('/transfers', authenticateUser, async (req, res) => {
+router.post('/transfers', authenticateToken, async (req, res) => {
   try {
     const { from_account_id, to_account_id, amount, date, category, description } = req.body;
 
@@ -71,7 +50,7 @@ router.post('/transfers', authenticateUser, async (req, res) => {
     const { data: accounts, error: accountsError } = await supabase
       .from('bank_accounts')
       .select('id')
-      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`)
+      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
       .in('id', [from_account_id, to_account_id]);
 
     if (accountsError) throw accountsError;
@@ -82,7 +61,7 @@ router.post('/transfers', authenticateUser, async (req, res) => {
     const { data, error } = await supabase
       .from('transfers')
       .insert({
-        user_id: req.user.id,
+        user_id: (req as any).user.id,
         from_account_id,
         to_account_id,
         amount,
@@ -100,7 +79,7 @@ router.post('/transfers', authenticateUser, async (req, res) => {
   }
 });
 
-router.put('/transfers/:id', authenticateUser, async (req, res) => {
+router.put('/transfers/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
@@ -110,7 +89,7 @@ router.put('/transfers/:id', authenticateUser, async (req, res) => {
       .from('transfers')
       .select('id')
       .eq('id', id)
-      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`)
+      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
       .single();
 
     if (checkError || !existingTransfer) {
@@ -142,7 +121,7 @@ router.put('/transfers/:id', authenticateUser, async (req, res) => {
   }
 });
 
-router.delete('/transfers/:id', authenticateUser, async (req, res) => {
+router.delete('/transfers/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -151,7 +130,7 @@ router.delete('/transfers/:id', authenticateUser, async (req, res) => {
       .from('transfers')
       .select('id')
       .eq('id', id)
-      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`)
+      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
       .single();
 
     if (checkError || !existingTransfer) {
@@ -171,12 +150,12 @@ router.delete('/transfers/:id', authenticateUser, async (req, res) => {
 });
 
 // Rota para estatísticas
-router.get('/transfers/stats', authenticateUser, async (req, res) => {
+router.get('/transfers/stats', authenticateToken, async (req, res) => {
   try {
     const { data: transfers, error } = await supabase
       .from('transfers')
       .select('amount, from_account_id, to_account_id, date')
-      .or(`user_id.eq.${req.user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${req.user.id}' AND linked_users.is_active = true)`);
+      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`);
 
     if (error) throw error;
 
