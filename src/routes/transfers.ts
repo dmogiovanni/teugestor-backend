@@ -9,13 +9,41 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Endpoint de teste sem autenticação
-router.get('/test-no-auth', (req, res) => {
-  res.json({ 
-    message: 'Endpoint de transferências sem autenticação funcionando!',
-    timestamp: new Date().toISOString(),
-    headers: req.headers
-  });
+// Endpoint de teste que simula exatamente o que o frontend faz
+router.get('/test-frontend-simulation', authenticateToken, async (req, res) => {
+  try {
+    console.log('Teste frontend - User ID:', (req as any).user.id);
+    console.log('Teste frontend - Headers:', req.headers);
+    
+    // Simular exatamente a query que o frontend está tentando fazer
+    const { data, error } = await supabase
+      .from('transfers')
+      .select('*')
+      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
+      .limit(5);
+
+    if (error) {
+      console.log('Erro na query:', error);
+      return res.status(500).json({ 
+        error: 'Erro na query de transferências',
+        details: error.message,
+        user_id: (req as any).user.id
+      });
+    }
+
+    res.json({ 
+      message: 'Query de transferências funcionando!',
+      data: data || [],
+      count: data ? data.length : 0,
+      user_id: (req as any).user.id
+    });
+  } catch (error) {
+    console.log('Erro geral:', error);
+    res.status(500).json({ 
+      error: 'Erro geral na simulação',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
 });
 
 // Endpoint de teste para verificar se as rotas estão funcionando
