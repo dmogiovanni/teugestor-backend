@@ -164,6 +164,31 @@ router.post('/test-create', authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint de teste super simples - apenas validação
+router.post('/test-simple', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== TESTE SUPER SIMPLES ===');
+    console.log('User ID:', (req as any).user.id);
+    console.log('Body recebido:', req.body);
+    console.log('Body type:', typeof req.body);
+    console.log('Body keys:', Object.keys(req.body));
+    
+    // Apenas retornar sucesso com os dados recebidos
+    res.status(200).json({ 
+      message: 'Teste simples funcionou!',
+      received_data: req.body,
+      user_id: (req as any).user.id,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.log('Erro no teste simples:', error);
+    res.status(500).json({ 
+      error: 'Erro no teste simples',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+});
+
 // Endpoint para verificar se a tabela transfers existe
 router.get('/test-table', async (req, res) => {
   try {
