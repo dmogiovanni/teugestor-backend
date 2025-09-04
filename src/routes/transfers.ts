@@ -172,18 +172,87 @@ router.post('/test-simple', authenticateToken, async (req, res) => {
     console.log('Body recebido:', req.body);
     console.log('Body type:', typeof req.body);
     console.log('Body keys:', Object.keys(req.body));
+    console.log('Headers:', req.headers);
+    console.log('Content-Type:', req.headers['content-type']);
+    console.log('Authorization:', req.headers.authorization ? 'Presente' : 'Ausente');
     
     // Apenas retornar sucesso com os dados recebidos
     res.status(200).json({ 
       message: 'Teste simples funcionou!',
       received_data: req.body,
       user_id: (req as any).user.id,
+      headers: {
+        'content-type': req.headers['content-type'],
+        'authorization': req.headers.authorization ? 'Presente' : 'Ausente',
+        'user-agent': req.headers['user-agent']
+      },
       timestamp: new Date().toISOString()
     });
   } catch (error) {
     console.log('Erro no teste simples:', error);
     res.status(500).json({ 
       error: 'Erro no teste simples',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+});
+
+// Endpoint para comparar com Postman - recebe exatamente os mesmos dados
+router.post('/test-postman-comparison', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== COMPARAÇÃO COM POSTMAN ===');
+    console.log('User ID:', (req as any).user.id);
+    console.log('Body completo:', JSON.stringify(req.body, null, 2));
+    console.log('Headers completos:', JSON.stringify(req.headers, null, 2));
+    
+    const { from_account_id, to_account_id, amount, date, category, description } = req.body;
+    
+    console.log('Campos extraídos:');
+    console.log('- from_account_id:', from_account_id, typeof from_account_id);
+    console.log('- to_account_id:', to_account_id, typeof to_account_id);
+    console.log('- amount:', amount, typeof amount);
+    console.log('- date:', date, typeof date);
+    console.log('- category:', category, typeof category);
+    console.log('- description:', description, typeof description);
+    
+    // Simular exatamente o que o endpoint principal faz
+    console.log('Simulando validações...');
+    
+    if (!from_account_id || !to_account_id || !amount || !date) {
+      console.log('❌ Validação falhou: Campos obrigatórios');
+      return res.status(400).json({ 
+        error: 'Campos obrigatórios não fornecidos',
+        received: { from_account_id, to_account_id, amount, date }
+      });
+    }
+    
+    if (from_account_id === to_account_id) {
+      console.log('❌ Validação falhou: Contas iguais');
+      return res.status(400).json({ error: 'As contas de origem e destino devem ser diferentes' });
+    }
+    
+    if (amount <= 0) {
+      console.log('❌ Validação falhou: Valor inválido');
+      return res.status(400).json({ error: 'O valor deve ser maior que zero' });
+    }
+    
+    console.log('✅ Todas as validações passaram!');
+    
+    res.status(200).json({ 
+      message: 'Comparação com Postman - todas as validações passaram!',
+      received_data: req.body,
+      user_id: (req as any).user.id,
+      validation_results: {
+        has_required_fields: !!(from_account_id && to_account_id && amount && date),
+        accounts_different: from_account_id !== to_account_id,
+        amount_valid: amount > 0
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.log('Erro na comparação:', error);
+    res.status(500).json({ 
+      error: 'Erro na comparação com Postman',
       details: error instanceof Error ? error.message : 'Erro desconhecido'
     });
   }
@@ -312,6 +381,9 @@ router.post('/', authenticateToken, async (req, res) => {
     }
 
     console.log('Inserindo transferência...');
+    
+    // TEMPORARIAMENTE: Desabilitar triggers para evitar erro 500
+    // Vamos inserir apenas a transferência sem criar as transações automáticas
     const { data, error } = await supabase
       .from('transfers')
       .insert({
@@ -330,6 +402,12 @@ router.post('/', authenticateToken, async (req, res) => {
 
     if (error) {
       console.log('Erro na inserção:', error);
+      console.log('Detalhes do erro:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       throw error;
     }
     
@@ -337,9 +415,11 @@ router.post('/', authenticateToken, async (req, res) => {
     res.status(201).json(data);
   } catch (error) {
     console.log('Erro geral ao criar transferência:', error);
+    console.log('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({ 
       error: 'Erro ao criar transferência',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
+      details: error instanceof Error ? error.message : 'Erro desconhecido',
+      code: (error as any)?.code || 'UNKNOWN'
     });
   }
 });
