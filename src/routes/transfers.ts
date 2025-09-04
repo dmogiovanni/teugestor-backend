@@ -258,6 +258,96 @@ router.post('/test-postman-comparison', authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint para testar inserção SEM triggers (para identificar se o problema são os triggers)
+router.post('/test-insert-no-triggers', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== TESTE INSERÇÃO SEM TRIGGERS ===');
+    console.log('User ID:', (req as any).user.id);
+    console.log('Body:', req.body);
+    
+    const { from_account_id, to_account_id, amount, date, category, description } = req.body;
+
+    // Validações básicas
+    if (!from_account_id || !to_account_id || !amount || !date) {
+      return res.status(400).json({ error: 'Campos obrigatórios não fornecidos' });
+    }
+
+    if (from_account_id === to_account_id) {
+      return res.status(400).json({ error: 'As contas de origem e destino devem ser diferentes' });
+    }
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'O valor deve ser maior que zero' });
+    }
+
+    // Determinar effectiveUserId
+    const { data: linkedUser } = await supabase
+      .from('linked_users')
+      .select('main_user_id')
+      .eq('linked_user_id', (req as any).user.id)
+      .eq('is_active', true)
+      .single();
+
+    const effectiveUserId = linkedUser ? linkedUser.main_user_id : (req as any).user.id;
+    console.log('Effective User ID:', effectiveUserId);
+
+    // Verificar se as contas pertencem ao usuário
+    const { data: accounts, error: accountsError } = await supabase
+      .from('poupeja_bank_accounts')
+      .select('id')
+      .eq('user_id', effectiveUserId)
+      .in('id', [from_account_id, to_account_id]);
+
+    if (accountsError) {
+      console.log('Erro ao verificar contas:', accountsError);
+      return res.status(500).json({ 
+        error: 'Erro ao verificar contas',
+        details: accountsError.message
+      });
+    }
+    
+    if (!accounts || accounts.length !== 2) {
+      return res.status(400).json({ error: 'Contas inválidas ou não encontradas' });
+    }
+
+    console.log('Tentando inserção SEM triggers...');
+    
+    // TEMPORARIAMENTE desabilitar triggers para este teste
+    // Usar SQL direto para inserir sem triggers
+    const { data, error } = await supabase.rpc('insert_transfer_without_triggers', {
+      p_user_id: effectiveUserId,
+      p_from_account_id: from_account_id,
+      p_to_account_id: to_account_id,
+      p_amount: amount,
+      p_transfer_date: date,
+      p_category: category,
+      p_description: description
+    });
+
+    console.log('Resultado inserção sem triggers:', { data, error });
+
+    if (error) {
+      console.log('Erro na inserção sem triggers:', error);
+      return res.status(500).json({ 
+        error: 'Erro na inserção sem triggers',
+        details: error.message,
+        code: error.code
+      });
+    }
+
+    res.status(201).json({ 
+      message: 'Transferência criada SEM triggers!',
+      data 
+    });
+  } catch (error) {
+    console.log('Erro geral no teste sem triggers:', error);
+    res.status(500).json({ 
+      error: 'Erro geral no teste sem triggers',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
+});
+
 // Endpoint para verificar se a tabela transfers existe
 router.get('/test-table', async (req, res) => {
   try {
