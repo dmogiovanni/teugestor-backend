@@ -101,12 +101,67 @@ router.get('/test-with-joins', authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint de teste para verificar se as rotas estão funcionando
-router.get('/test', (req, res) => {
-  res.json({ 
-    message: 'Rotas de transferências funcionando!',
-    timestamp: new Date().toISOString()
-  });
+// Endpoint de teste para criação de transferência sem triggers
+router.post('/test-create', authenticateToken, async (req, res) => {
+  try {
+    console.log('=== TESTE CRIAÇÃO SEM TRIGGERS ===');
+    console.log('User ID:', (req as any).user.id);
+    console.log('Body:', req.body);
+    
+    const { from_account_id, to_account_id, amount, date, category, description } = req.body;
+
+    // Validações básicas
+    if (!from_account_id || !to_account_id || !amount || !date) {
+      return res.status(400).json({ error: 'Campos obrigatórios não fornecidos' });
+    }
+
+    // Determinar effectiveUserId
+    const { data: linkedUser } = await supabase
+      .from('linked_users')
+      .select('main_user_id')
+      .eq('linked_user_id', (req as any).user.id)
+      .eq('is_active', true)
+      .single();
+
+    const effectiveUserId = linkedUser ? linkedUser.main_user_id : (req as any).user.id;
+    console.log('Effective User ID:', effectiveUserId);
+
+    // Testar inserção simples sem triggers
+    const { data, error } = await supabase
+      .from('transfers')
+      .insert({
+        user_id: effectiveUserId,
+        from_account_id,
+        to_account_id,
+        amount,
+        transfer_date: date,
+        category,
+        description
+      })
+      .select()
+      .single();
+
+    console.log('Resultado inserção:', { data, error });
+
+    if (error) {
+      return res.status(500).json({ 
+        error: 'Erro na inserção',
+        details: error.message,
+        code: error.code
+      });
+    }
+
+    res.status(201).json({ 
+      message: 'Transferência criada com sucesso (teste)',
+      data 
+    });
+  } catch (error) {
+    console.log('Erro geral no teste:', error);
+    res.status(500).json({ 
+      error: 'Erro geral no teste',
+      details: error instanceof Error ? error.message : 'Erro desconhecido'
+    });
+  }
 });
 
 // Endpoint para verificar se a tabela transfers existe
