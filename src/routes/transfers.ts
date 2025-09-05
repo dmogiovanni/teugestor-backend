@@ -176,7 +176,6 @@ router.post('/', authenticateToken, async (req, res) => {
         to_account_id,
         amount,
         transfer_date: date,
-        category,
         description
       })
       .select()
