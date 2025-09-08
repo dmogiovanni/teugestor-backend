@@ -9,82 +9,6 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Endpoint de teste que simula exatamente o que o frontend faz
-router.get('/test-frontend-simulation', authenticateToken, async (req, res) => {
-  try {
-    const userId = (req as any).user.id;
-    
-    // Primeiro, verificar se é usuário vinculado
-    const { data: linkedUser } = await supabase
-      .from('linked_users')
-      .select('main_user_id')
-      .eq('linked_user_id', userId)
-      .eq('is_active', true)
-      .single();
-
-    // Determinar o user_id efetivo para a query
-    const effectiveUserId = linkedUser ? linkedUser.main_user_id : userId;
-    
-    // Simular exatamente a query que o frontend está tentando fazer
-    const { data, error } = await supabase
-      .from('transfers')
-      .select('*')
-      .eq('user_id', effectiveUserId)
-      .limit(5);
-
-    if (error) {
-      return res.status(500).json({ 
-        error: 'Erro na query de transferências',
-        details: error.message,
-        user_id: userId,
-        effective_user_id: effectiveUserId
-      });
-    }
-
-    res.json({ 
-      message: 'Query de transferências funcionando!',
-      data: data || [],
-      count: data ? data.length : 0,
-      user_id: userId,
-      effective_user_id: effectiveUserId
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      error: 'Erro geral na simulação',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
-    });
-  }
-});
-
-// Endpoint para verificar se a tabela transfers existe
-router.get('/test-table', async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('transfers')
-      .select('*')
-      .limit(1);
-    
-    if (error) {
-      return res.status(500).json({ 
-        error: 'Erro ao acessar tabela transfers',
-        details: error.message 
-      });
-    }
-    
-    res.json({ 
-      message: 'Tabela transfers existe e está acessível!',
-      timestamp: new Date().toISOString(),
-      data: data,
-      count: data ? data.length : 0
-    });
-  } catch (error) {
-    res.status(500).json({ 
-      error: 'Erro ao verificar tabela transfers',
-      details: error instanceof Error ? error.message : 'Erro desconhecido'
-    });
-  }
-});
-
 // Rotas de transferências
 router.get('/', authenticateToken, async (req, res) => {
   try {
@@ -198,13 +122,25 @@ router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = req.body;
+    const userId = (req as any).user.id;
+    
+    // Primeiro, verificar se é usuário vinculado
+    const { data: linkedUser } = await supabase
+      .from('linked_users')
+      .select('main_user_id')
+      .eq('linked_user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    // Determinar o user_id efetivo para a query
+    const effectiveUserId = linkedUser ? linkedUser.main_user_id : userId;
 
     // Verificar se a transferência pertence ao usuário
     const { data: existingTransfer, error: checkError } = await supabase
       .from('transfers')
       .select('id')
       .eq('id', id)
-      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
+      .eq('user_id', effectiveUserId)
       .single();
 
     if (checkError || !existingTransfer) {
@@ -239,13 +175,25 @@ router.put('/:id', authenticateToken, async (req, res) => {
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = (req as any).user.id;
+    
+    // Primeiro, verificar se é usuário vinculado
+    const { data: linkedUser } = await supabase
+      .from('linked_users')
+      .select('main_user_id')
+      .eq('linked_user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    // Determinar o user_id efetivo para a query
+    const effectiveUserId = linkedUser ? linkedUser.main_user_id : userId;
 
     // Verificar se a transferência pertence ao usuário
     const { data: existingTransfer, error: checkError } = await supabase
       .from('transfers')
       .select('id')
       .eq('id', id)
-      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`)
+      .eq('user_id', effectiveUserId)
       .single();
 
     if (checkError || !existingTransfer) {
@@ -267,10 +215,23 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 // Rota para estatísticas
 router.get('/stats', authenticateToken, async (req, res) => {
   try {
+    const userId = (req as any).user.id;
+    
+    // Primeiro, verificar se é usuário vinculado
+    const { data: linkedUser } = await supabase
+      .from('linked_users')
+      .select('main_user_id')
+      .eq('linked_user_id', userId)
+      .eq('is_active', true)
+      .single();
+
+    // Determinar o user_id efetivo para a query
+    const effectiveUserId = linkedUser ? linkedUser.main_user_id : userId;
+
     const { data: transfers, error } = await supabase
       .from('transfers')
-      .select('amount, from_account_id, to_account_id, date')
-      .or(`user_id.eq.${(req as any).user.id},user_id.in.(SELECT linked_users.main_user_id FROM linked_users WHERE linked_users.linked_user_id = '${(req as any).user.id}' AND linked_users.is_active = true)`);
+      .select('amount, from_account_id, to_account_id, transfer_date')
+      .eq('user_id', effectiveUserId);
 
     if (error) throw error;
 
@@ -283,12 +244,12 @@ router.get('/stats', authenticateToken, async (req, res) => {
     const totalAmount = transfersData.reduce((sum, t) => sum + Number(t.amount), 0);
 
     const monthlyTransfers = transfersData.filter(t => {
-      const date = new Date(t.date);
+      const date = new Date(t.transfer_date);
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     }).length;
 
     const monthlyAmount = transfersData.filter(t => {
-      const date = new Date(t.date);
+      const date = new Date(t.transfer_date);
       return date.getMonth() === currentMonth && date.getFullYear() === currentYear;
     }).reduce((sum, t) => sum + Number(t.amount), 0);
 
