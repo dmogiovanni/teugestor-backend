@@ -1,8 +1,13 @@
 import express from 'express';
-import { supabase } from '../lib/supabase';
-import { authenticateUser } from '../middleware/auth';
+import { createClient } from '@supabase/supabase-js';
+import { authenticateToken } from '../middleware/auth';
 
 const router = express.Router();
+
+// Supabase client
+const supabaseUrl = process.env.SUPABASE_URL!;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Interface para cartão de crédito
 interface CreditCard {
@@ -19,9 +24,9 @@ interface CreditCard {
 }
 
 // GET /credit-cards - Listar todos os cartões do usuário
-router.get('/', authenticateUser, async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
@@ -46,9 +51,9 @@ router.get('/', authenticateUser, async (req, res) => {
 });
 
 // POST /credit-cards - Criar novo cartão
-router.post('/', authenticateUser, async (req, res) => {
+router.post('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
@@ -107,9 +112,9 @@ router.post('/', authenticateUser, async (req, res) => {
 });
 
 // PUT /credit-cards/:id - Atualizar cartão
-router.put('/:id', authenticateUser, async (req, res) => {
+router.put('/:id', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     const cardId = req.params.id;
     
     if (!userId) {
@@ -179,9 +184,9 @@ router.put('/:id', authenticateUser, async (req, res) => {
 });
 
 // DELETE /credit-cards/:id - Excluir cartão
-router.delete('/:id', authenticateUser, async (req, res) => {
+router.delete('/:id', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     const cardId = req.params.id;
     
     if (!userId) {
@@ -219,9 +224,9 @@ router.delete('/:id', authenticateUser, async (req, res) => {
 });
 
 // GET /credit-cards/stats - Estatísticas dos cartões
-router.get('/stats', authenticateUser, async (req, res) => {
+router.get('/stats', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user?.id;
+    const userId = (req as any).user?.id;
     if (!userId) {
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
