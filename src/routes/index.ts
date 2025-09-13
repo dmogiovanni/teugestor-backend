@@ -4,6 +4,7 @@ import linkedUsersRoutes from './linkedUsers';
 import bankAccountsRoutes from './bankAccounts';
 import transfersRoutes from './transfers';
 import creditCardsRoutes from './creditCards';
+import creditCardInvoicesRoutes from './creditCardInvoices';
 
 const router = Router();
 
@@ -21,5 +22,8 @@ router.use('/transfers', transfersRoutes);
 
 // Rotas de cartões de crédito
 router.use('/credit-cards', creditCardsRoutes);
+
+// Rotas de faturas e despesas de cartão de crédito
+router.use('/credit-cards', creditCardInvoicesRoutes);
 
 export default router;
