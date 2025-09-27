@@ -273,8 +273,20 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
         if (existingInvoice) {
           invoiceId = existingInvoice.id;
         } else {
-          // Criar nova fatura
-          const dataVencimento = new Date(ano, mes, 15); // Dia 15 do mês
+          // Buscar dados do cartão para obter o due_day
+          const { data: creditCard, error: cardError } = await supabase
+            .from('poupeja_credit_cards')
+            .select('due_day')
+            .eq('id', credit_card_id)
+            .single();
+
+          if (cardError || !creditCard) {
+            console.error('Erro ao buscar cartão:', cardError);
+            return res.status(500).json({ error: 'Erro ao buscar dados do cartão' });
+          }
+
+          // Criar nova fatura usando o due_day do cartão
+          const dataVencimento = new Date(ano, mes, creditCard.due_day);
           
           const { data: newInvoice, error: invoiceError } = await supabase
             .from('credit_card_invoices')
