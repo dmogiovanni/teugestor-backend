@@ -673,4 +673,132 @@ router.delete('/invoices/:id', authenticateToken, async (req: express.Request, r
   }
 });
 
+// POST /credit-cards/invoices/pay - Pagar fatura
+router.post('/invoices/pay', authenticateToken, async (req: express.Request, res) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuário não autenticado' });
+    }
+
+    const { invoice_id, bank_account_id, category_id, payment_date } = req.body;
+
+    // Validações
+    if (!invoice_id || !bank_account_id || !category_id || !payment_date) {
+      return res.status(400).json({ 
+        error: 'Todos os campos são obrigatórios: invoice_id, bank_account_id, category_id, payment_date' 
+      });
+    }
+
+    // Verificar se a fatura existe e pertence ao usuário
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('credit_card_invoices')
+      .select(`
+        *,
+        poupeja_credit_cards!inner(
+          id,
+          name,
+          user_id
+        )
+      `)
+      .eq('id', invoice_id)
+      .eq('poupeja_credit_cards.user_id', userId)
+      .single();
+
+    if (invoiceError || !invoice) {
+      return res.status(404).json({ error: 'Fatura não encontrada' });
+    }
+
+    // Verificar se a fatura já está paga
+    if (invoice.status === 'paga') {
+      return res.status(400).json({ error: 'Esta fatura já foi paga' });
+    }
+
+    // Verificar se a conta bancária existe e pertence ao usuário
+    const { data: bankAccount, error: bankAccountError } = await supabase
+      .from('poupeja_bank_accounts')
+      .select('*')
+      .eq('id', bank_account_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (bankAccountError || !bankAccount) {
+      return res.status(404).json({ error: 'Conta bancária não encontrada' });
+    }
+
+    // Verificar se a categoria existe e pertence ao usuário
+    const { data: category, error: categoryError } = await supabase
+      .from('poupeja_categories')
+      .select('*')
+      .eq('id', category_id)
+      .eq('user_id', userId)
+      .single();
+
+    if (categoryError || !category) {
+      return res.status(404).json({ error: 'Categoria não encontrada' });
+    }
+
+    // Verificar se a categoria é do tipo 'expense'
+    if (category.type !== 'expense') {
+      return res.status(400).json({ error: 'A categoria deve ser do tipo despesa' });
+    }
+
+    // Iniciar transação
+    const { data: transaction, error: transactionError } = await supabase
+      .from('poupeja_transactions')
+      .insert({
+        user_id: userId,
+        bank_account_id: bank_account_id,
+        category_id: category_id,
+        type: 'expense',
+        amount: invoice.valor_total,
+        description: `Pagamento da fatura ${invoice.poupeja_credit_cards.name} - ${invoice.mes.toString().padStart(2, '0')}/${invoice.ano}`,
+        date: payment_date,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select()
+      .single();
+
+    if (transactionError) {
+      console.error('Erro ao criar transação:', transactionError);
+      return res.status(500).json({ error: 'Erro ao criar transação de pagamento' });
+    }
+
+    // Atualizar status da fatura para 'paga'
+    const { error: updateInvoiceError } = await supabase
+      .from('credit_card_invoices')
+      .update({ 
+        status: 'paga',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', invoice_id);
+
+    if (updateInvoiceError) {
+      console.error('Erro ao atualizar status da fatura:', updateInvoiceError);
+      // Tentar reverter a transação
+      await supabase
+        .from('poupeja_transactions')
+        .delete()
+        .eq('id', transaction.id);
+      
+      return res.status(500).json({ error: 'Erro ao atualizar status da fatura' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Fatura paga com sucesso',
+      transaction: transaction,
+      invoice: {
+        id: invoice.id,
+        status: 'paga'
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro no endpoint de pagar fatura:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
 export default router;
