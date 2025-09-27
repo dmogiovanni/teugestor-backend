@@ -208,13 +208,21 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       const ano = new Date(data_compra).getFullYear();
       const data_vencimento = new Date(ano, mes, 15); // Vencimento no dia 15
 
+      // Formatar data sem problemas de timezone
+      const formatDateForDB = (date: Date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+      };
+
       // Usar função RPC para criar fatura se não existir
       const { data: invoiceId, error: rpcError } = await supabase
         .rpc('create_invoice_if_not_exists', {
           p_credit_card_id: credit_card_id,
           p_mes: mes,
           p_ano: ano,
-          p_data_vencimento: data_vencimento.toISOString().split('T')[0]
+          p_data_vencimento: formatDateForDB(data_vencimento)
         });
 
       if (rpcError) {
@@ -445,6 +453,69 @@ router.put('/invoices/:id/status', authenticateToken, async (req: express.Reques
     res.json(updatedInvoice);
   } catch (error) {
     console.error('Erro no endpoint de atualizar status da fatura:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
+  }
+});
+
+// DELETE /credit-cards/invoices/{id} - Excluir fatura
+router.delete('/invoices/:id', authenticateToken, async (req: express.Request, res) => {
+  try {
+    const userId = (req as any).user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Usuário não autenticado' });
+    }
+
+    const { id } = req.params;
+
+    // Verificar se a fatura pertence ao usuário
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('credit_card_invoices')
+      .select(`
+        id,
+        poupeja_credit_cards!inner(
+          id,
+          user_id
+        )
+      `)
+      .eq('id', id)
+      .eq('poupeja_credit_cards.user_id', userId)
+      .single();
+
+    if (invoiceError || !invoice) {
+      return res.status(404).json({ error: 'Fatura não encontrada' });
+    }
+
+    // Verificar se há despesas vinculadas à fatura
+    const { data: expenses, error: expensesError } = await supabase
+      .from('credit_card_expenses')
+      .select('id')
+      .eq('invoice_id', id);
+
+    if (expensesError) {
+      console.error('Erro ao verificar despesas:', expensesError);
+      return res.status(500).json({ error: 'Erro interno do servidor' });
+    }
+
+    if (expenses && expenses.length > 0) {
+      return res.status(400).json({ 
+        error: 'Não é possível excluir uma fatura que possui despesas vinculadas. Exclua as despesas primeiro.' 
+      });
+    }
+
+    // Excluir fatura
+    const { error: deleteError } = await supabase
+      .from('credit_card_invoices')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      console.error('Erro ao excluir fatura:', deleteError);
+      return res.status(500).json({ error: 'Erro ao excluir fatura' });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error('Erro no endpoint de excluir fatura:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
