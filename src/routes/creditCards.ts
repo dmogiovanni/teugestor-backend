@@ -23,7 +23,37 @@ interface CreditCard {
   updated_at: string;
 }
 
-// GET /credit-cards - Listar todos os cartões do usuário
+/**
+ * @swagger
+ * /credit-cards:
+ *   get:
+ *     tags: [Credit Cards]
+ *     summary: Listar cartões de crédito do usuário
+ *     description: Retorna todos os cartões de crédito do usuário autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de cartões de crédito
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/CreditCard'
+ *       401:
+ *         description: Token de autenticação inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = (req as any).user?.id;

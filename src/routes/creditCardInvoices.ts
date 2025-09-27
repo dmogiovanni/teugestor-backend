@@ -9,7 +9,62 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// GET /credit-cards/invoices - Listar faturas
+/**
+ * @swagger
+ * /credit-cards/invoices:
+ *   get:
+ *     tags: [Credit Card Invoices]
+ *     summary: Listar faturas de cartão de crédito
+ *     description: Retorna todas as faturas de cartão de crédito do usuário autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: credit_card_id
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *         description: ID do cartão de crédito para filtrar
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [aberta, paga, vencida]
+ *         description: Status da fatura para filtrar
+ *       - in: query
+ *         name: mes
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 12
+ *         description: Mês para filtrar
+ *       - in: query
+ *         name: ano
+ *         schema:
+ *           type: integer
+ *         description: Ano para filtrar
+ *     responses:
+ *       200:
+ *         description: Lista de faturas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/CreditCardInvoice'
+ *       401:
+ *         description: Token de autenticação inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/invoices', authenticateToken, async (req: express.Request, res) => {
   try {
     const userId = (req as any).user?.id;

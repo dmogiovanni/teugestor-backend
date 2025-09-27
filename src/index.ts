@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
 import routes from './routes';
+import { setupSwagger } from './config/swagger';
 
 dotenv.config();
 
@@ -21,11 +22,54 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
 
+/**
+ * @swagger
+ * /:
+ *   get:
+ *     tags: [Health]
+ *     summary: Status do servidor
+ *     description: Verifica se o servidor backend está funcionando
+ *     responses:
+ *       200:
+ *         description: Servidor funcionando
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: "Teu Gestor Backend rodando!"
+ */
 app.get('/', (req: Request, res: Response) => {
   res.send('Teu Gestor Backend rodando!');
 });
 
-// Endpoint de teste para verificar se o backend está funcionando
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     tags: [Health]
+ *     summary: Health check
+ *     description: Verifica o status de saúde do servidor
+ *     responses:
+ *       200:
+ *         description: Servidor saudável
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: string
+ *                   example: "OK"
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 message:
+ *                   type: string
+ *                   example: "Backend funcionando corretamente"
+ *                 version:
+ *                   type: string
+ *                   example: "1.0.0"
+ */
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
     status: 'OK',
@@ -55,6 +99,9 @@ app.get('/api/transfers/test-frontend', (req: Request, res: Response) => {
     headers: req.headers
   });
 });
+
+// Configurar Swagger
+setupSwagger(app);
 
 // Usar rotas organizadas
 app.use('/api', routes);

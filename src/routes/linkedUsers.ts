@@ -18,7 +18,56 @@ const router = Router();
 // Aplicar autenticação em todas as rotas
 router.use(authenticateToken);
 
-// GET /linked-users - Listar usuários vinculados
+/**
+ * @swagger
+ * /linked-users:
+ *   get:
+ *     tags: [Linked Users]
+ *     summary: Listar usuários vinculados
+ *     description: Retorna todos os usuários vinculados ao usuário principal
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de usuários vinculados
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                     format: uuid
+ *                   name:
+ *                     type: string
+ *                   email:
+ *                     type: string
+ *                     format: email
+ *                   whatsapp:
+ *                     type: string
+ *                   permission_type:
+ *                     type: string
+ *                     enum: [view, edit]
+ *                   is_active:
+ *                     type: boolean
+ *                   created_at:
+ *                     type: string
+ *                     format: date-time
+ *       401:
+ *         description: Token de autenticação inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/', getLinkedUsers);
 
 // POST /linked-users - Criar usuário vinculado

@@ -9,7 +9,65 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-// Rotas de transferências
+/**
+ * @swagger
+ * /transfers:
+ *   get:
+ *     tags: [Transfers]
+ *     summary: Listar transferências do usuário
+ *     description: Retorna todas as transferências do usuário autenticado
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de transferências
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                     format: uuid
+ *                   from_account_id:
+ *                     type: string
+ *                     format: uuid
+ *                   to_account_id:
+ *                     type: string
+ *                     format: uuid
+ *                   amount:
+ *                     type: number
+ *                     format: decimal
+ *                   description:
+ *                     type: string
+ *                   date:
+ *                     type: string
+ *                     format: date
+ *                   from_account:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *                   to_account:
+ *                     type: object
+ *                     properties:
+ *                       name:
+ *                         type: string
+ *       401:
+ *         description: Token de autenticação inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = (req as any).user.id;
