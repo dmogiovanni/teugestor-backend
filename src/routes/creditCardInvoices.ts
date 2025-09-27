@@ -28,6 +28,18 @@ router.get('/invoices', authenticateToken, async (req: express.Request, res) => 
           name,
           brand,
           user_id
+        ),
+        credit_card_expenses(
+          id,
+          nome,
+          valor,
+          data_compra,
+          observacao,
+          categoria_id,
+          poupeja_categories(
+            id,
+            name
+          )
         )
       `)
       .eq('poupeja_credit_cards.user_id', userId);
@@ -192,95 +204,232 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       valor, 
       data_compra, 
       observacao,
-      credit_card_id // Para criar fatura automaticamente se necessário
+      credit_card_id, // Para criar fatura automaticamente se necessário
+      // Campos para compra parcelada
+      is_parcelada,
+      numero_parcelas,
+      data_primeira_parcela
     } = req.body;
 
     // Validar dados obrigatórios
-    if (!nome || !valor || !data_compra) {
-      return res.status(400).json({ error: 'Dados obrigatórios não fornecidos' });
+    if (!nome || !valor) {
+      return res.status(400).json({ error: 'Nome e valor são obrigatórios' });
     }
 
-    let finalInvoiceId = invoice_id;
+    // Validar dados específicos para compra parcelada
+    if (is_parcelada === true || is_parcelada === 'true') {
+      console.log('Entrando na lógica de compra parcelada');
+      if (!numero_parcelas || numero_parcelas < 2 || numero_parcelas > 24) {
+        return res.status(400).json({ error: 'Número de parcelas deve ser entre 2 e 24' });
+      }
+      if (!data_primeira_parcela) {
+        return res.status(400).json({ error: 'Data da primeira parcela é obrigatória' });
+      }
+      if (!credit_card_id) {
+        return res.status(400).json({ error: 'ID do cartão é obrigatório para compras parceladas' });
+      }
+    } else {
+      console.log('Entrando na lógica de compra à vista');
+      if (!data_compra) {
+        return res.status(400).json({ error: 'Data da compra é obrigatória' });
+      }
+    }
 
-    // Se não foi fornecida invoice_id, criar fatura automaticamente
-    if (!finalInvoiceId && credit_card_id) {
-      const mes = new Date(data_compra).getMonth() + 1;
-      const ano = new Date(data_compra).getFullYear();
-      const data_vencimento = new Date(ano, mes, 15); // Vencimento no dia 15
+    // Formatar data sem problemas de timezone
+    const formatDateForDB = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
 
-      // Formatar data sem problemas de timezone
-      const formatDateForDB = (date: Date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        return `${year}-${month}-${day}`;
-      };
+    // Processar compra parcelada ou à vista
+    console.log('=== DEBUG COMPRA PARCELADA ===');
+    console.log('is_parcelada:', is_parcelada, typeof is_parcelada);
+    console.log('numero_parcelas:', numero_parcelas);
+    console.log('data_primeira_parcela:', data_primeira_parcela);
+    console.log('credit_card_id:', credit_card_id);
+    console.log('valor:', valor);
+    console.log('req.body completo:', req.body);
+    
+    if (is_parcelada === true || is_parcelada === 'true') {
+      // Processar compra parcelada
+      const valorTotal = valor;
+      const numeroParcelas = numero_parcelas;
+      const valorBaseParcela = Math.floor((valorTotal / numeroParcelas) * 100) / 100; // Arredonda para baixo
+      const diferenca = valorTotal - (valorBaseParcela * numeroParcelas); // Calcula a diferença
+      const despesasCriadas = [];
 
-      // Usar função RPC para criar fatura se não existir
-      const { data: invoiceId, error: rpcError } = await supabase
-        .rpc('create_invoice_if_not_exists', {
-          p_credit_card_id: credit_card_id,
-          p_mes: mes,
-          p_ano: ano,
-          p_data_vencimento: formatDateForDB(data_vencimento)
-        });
+      for (let i = 0; i < numero_parcelas; i++) {
+        console.log(`--- Criando parcela ${i + 1}/${numero_parcelas} ---`);
+        
+        // Calcular data da parcela
+        const dataParcela = new Date(data_primeira_parcela);
+        dataParcela.setMonth(dataParcela.getMonth() + i);
+        
+        const mes = dataParcela.getMonth() + 1;
+        const ano = dataParcela.getFullYear();
+        
+        console.log(`Data da parcela: ${dataParcela.toISOString()}`);
+        console.log(`Mês/Ano: ${mes}/${ano}`);
 
-      if (rpcError) {
-        console.error('Erro ao criar fatura automaticamente:', rpcError);
-        return res.status(500).json({ error: 'Erro ao criar fatura' });
+        // Buscar ou criar fatura para o mês da parcela
+        let invoiceId = null;
+        
+        // Verificar se fatura já existe
+        const { data: existingInvoice } = await supabase
+          .from('credit_card_invoices')
+          .select('id')
+          .eq('credit_card_id', credit_card_id)
+          .eq('mes', mes)
+          .eq('ano', ano)
+          .single();
+
+        if (existingInvoice) {
+          invoiceId = existingInvoice.id;
+        } else {
+          // Criar nova fatura
+          const dataVencimento = new Date(ano, mes, 15); // Dia 15 do mês
+          
+          const { data: newInvoice, error: invoiceError } = await supabase
+            .from('credit_card_invoices')
+            .insert({
+              credit_card_id,
+              mes,
+              ano,
+              data_vencimento: formatDateForDB(dataVencimento),
+              status: 'aberta'
+            })
+            .select('id')
+            .single();
+
+          if (invoiceError) {
+            console.error('Erro ao criar fatura:', invoiceError);
+            return res.status(500).json({ error: 'Erro ao criar fatura' });
+          }
+
+          invoiceId = newInvoice.id;
+        }
+
+        // Calcular valor da parcela (última recebe a diferença de centavos)
+        const valorParcela = i === numero_parcelas - 1 
+          ? valorBaseParcela + diferenca 
+          : valorBaseParcela;
+
+        // Criar despesa da parcela
+        const { data: newExpense, error: insertError } = await supabase
+          .from('credit_card_expenses')
+          .insert({
+            invoice_id: invoiceId,
+            categoria_id,
+            nome: `${nome} (${i + 1}/${numero_parcelas})`,
+            valor: valorParcela,
+            data_compra: formatDateForDB(dataParcela),
+            observacao: observacao ? `${observacao} - Parcela ${i + 1}/${numero_parcelas}` : `Parcela ${i + 1}/${numero_parcelas}`,
+            numero_parcela: `${i + 1}/${numero_parcelas}`,
+            parcela_total: numero_parcelas
+          })
+          .select(`
+            *,
+            poupeja_categories(
+              id,
+              name
+            )
+          `)
+          .single();
+
+        if (insertError) {
+          console.error('Erro ao criar despesa da parcela:', insertError);
+          return res.status(500).json({ error: 'Erro ao criar despesa da parcela' });
+        }
+
+        despesasCriadas.push(newExpense);
       }
 
-      finalInvoiceId = invoiceId;
-    }
+      res.status(201).json({
+        message: 'Compra parcelada criada com sucesso',
+        parcelas: despesasCriadas,
+        total_parcelas: numero_parcelas,
+        valor_total: valorTotal,
+        valor_base_parcela: valorBaseParcela,
+        diferenca_ultima_parcela: diferenca
+      });
+    } else {
+      // Processar compra à vista (lógica original)
+      let finalInvoiceId = invoice_id;
 
-    if (!finalInvoiceId) {
-      return res.status(400).json({ error: 'ID da fatura é obrigatório' });
-    }
+      // Se não foi fornecida invoice_id, criar fatura automaticamente
+      if (!finalInvoiceId && credit_card_id) {
+        const mes = new Date(data_compra).getMonth() + 1;
+        const ano = new Date(data_compra).getFullYear();
+        const data_vencimento = new Date(ano, mes, 15); // Vencimento no dia 15
 
-    // Verificar se a fatura pertence ao usuário
-    const { data: invoice, error: invoiceError } = await supabase
-      .from('credit_card_invoices')
-      .select(`
-        id,
-        poupeja_credit_cards!inner(
+        // Usar função RPC para criar fatura se não existir
+        const { data: invoiceId, error: rpcError } = await supabase
+          .rpc('create_invoice_if_not_exists', {
+            p_credit_card_id: credit_card_id,
+            p_mes: mes,
+            p_ano: ano,
+            p_data_vencimento: formatDateForDB(data_vencimento)
+          });
+
+        if (rpcError) {
+          console.error('Erro ao criar fatura automaticamente:', rpcError);
+          return res.status(500).json({ error: 'Erro ao criar fatura' });
+        }
+
+        finalInvoiceId = invoiceId;
+      }
+
+      if (!finalInvoiceId) {
+        return res.status(400).json({ error: 'ID da fatura é obrigatório' });
+      }
+
+      // Verificar se a fatura pertence ao usuário
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('credit_card_invoices')
+        .select(`
           id,
-          user_id
-        )
-      `)
-      .eq('id', finalInvoiceId)
-      .eq('poupeja_credit_cards.user_id', userId)
-      .single();
+          poupeja_credit_cards!inner(
+            id,
+            user_id
+          )
+        `)
+        .eq('id', finalInvoiceId)
+        .eq('poupeja_credit_cards.user_id', userId)
+        .single();
 
-    if (invoiceError || !invoice) {
-      return res.status(404).json({ error: 'Fatura não encontrada' });
+      if (invoiceError || !invoice) {
+        return res.status(404).json({ error: 'Fatura não encontrada' });
+      }
+
+      // Criar despesa
+      const { data: newExpense, error: insertError } = await supabase
+        .from('credit_card_expenses')
+        .insert({
+          invoice_id: finalInvoiceId,
+          categoria_id,
+          nome,
+          valor,
+          data_compra,
+          observacao
+        })
+        .select(`
+          *,
+          poupeja_categories(
+            id,
+            name
+          )
+        `)
+        .single();
+
+      if (insertError) {
+        console.error('Erro ao criar despesa:', insertError);
+        return res.status(500).json({ error: 'Erro ao criar despesa' });
+      }
+
+      res.status(201).json(newExpense);
     }
-
-    // Criar despesa
-    const { data: newExpense, error: insertError } = await supabase
-      .from('credit_card_expenses')
-      .insert({
-        invoice_id: finalInvoiceId,
-        categoria_id,
-        nome,
-        valor,
-        data_compra,
-        observacao
-      })
-      .select(`
-        *,
-        poupeja_categories(
-          id,
-          name
-        )
-      `)
-      .single();
-
-    if (insertError) {
-      console.error('Erro ao criar despesa:', insertError);
-      return res.status(500).json({ error: 'Erro ao criar despesa' });
-    }
-
-    res.status(201).json(newExpense);
   } catch (error) {
     console.error('Erro no endpoint de criar despesa:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
@@ -496,10 +645,17 @@ router.delete('/invoices/:id', authenticateToken, async (req: express.Request, r
       return res.status(500).json({ error: 'Erro interno do servidor' });
     }
 
+    // Excluir despesas vinculadas primeiro (cascata)
     if (expenses && expenses.length > 0) {
-      return res.status(400).json({ 
-        error: 'Não é possível excluir uma fatura que possui despesas vinculadas. Exclua as despesas primeiro.' 
-      });
+      const { error: deleteExpensesError } = await supabase
+        .from('credit_card_expenses')
+        .delete()
+        .eq('invoice_id', id);
+
+      if (deleteExpensesError) {
+        console.error('Erro ao excluir despesas:', deleteExpensesError);
+        return res.status(500).json({ error: 'Erro ao excluir despesas vinculadas' });
+      }
     }
 
     // Excluir fatura
