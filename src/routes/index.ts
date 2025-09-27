@@ -5,6 +5,7 @@ import bankAccountsRoutes from './bankAccounts';
 import transfersRoutes from './transfers';
 import creditCardsRoutes from './creditCards';
 import creditCardInvoicesRoutes from './creditCardInvoices';
+import authRoutes from './auth';
 
 const router = Router();
 
@@ -25,5 +26,8 @@ router.use('/credit-cards', creditCardsRoutes);
 
 // Rotas de faturas e despesas de cartão de crédito
 router.use('/credit-cards', creditCardInvoicesRoutes);
+
+// Rotas de autenticação
+router.use('/auth', authRoutes);
 
 export default router;
