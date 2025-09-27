@@ -218,7 +218,6 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
 
     // Validar dados específicos para compra parcelada
     if (is_parcelada === true || is_parcelada === 'true') {
-      console.log('Entrando na lógica de compra parcelada');
       if (!numero_parcelas || numero_parcelas < 2 || numero_parcelas > 24) {
         return res.status(400).json({ error: 'Número de parcelas deve ser entre 2 e 24' });
       }
@@ -229,7 +228,6 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
         return res.status(400).json({ error: 'ID do cartão é obrigatório para compras parceladas' });
       }
     } else {
-      console.log('Entrando na lógica de compra à vista');
       if (!data_compra) {
         return res.status(400).json({ error: 'Data da compra é obrigatória' });
       }
@@ -244,14 +242,6 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
     };
 
     // Processar compra parcelada ou à vista
-    console.log('=== DEBUG COMPRA PARCELADA ===');
-    console.log('is_parcelada:', is_parcelada, typeof is_parcelada);
-    console.log('numero_parcelas:', numero_parcelas);
-    console.log('data_primeira_parcela:', data_primeira_parcela);
-    console.log('credit_card_id:', credit_card_id);
-    console.log('valor:', valor);
-    console.log('req.body completo:', req.body);
-    
     if (is_parcelada === true || is_parcelada === 'true') {
       // Processar compra parcelada
       const valorTotal = valor;
@@ -261,17 +251,12 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       const despesasCriadas = [];
 
       for (let i = 0; i < numero_parcelas; i++) {
-        console.log(`--- Criando parcela ${i + 1}/${numero_parcelas} ---`);
-        
         // Calcular data da parcela
         const dataParcela = new Date(data_primeira_parcela);
         dataParcela.setMonth(dataParcela.getMonth() + i);
         
         const mes = dataParcela.getMonth() + 1;
         const ano = dataParcela.getFullYear();
-        
-        console.log(`Data da parcela: ${dataParcela.toISOString()}`);
-        console.log(`Mês/Ano: ${mes}/${ano}`);
 
         // Buscar ou criar fatura para o mês da parcela
         let invoiceId = null;
@@ -356,79 +341,79 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       });
     } else {
       // Processar compra à vista (lógica original)
-      let finalInvoiceId = invoice_id;
+    let finalInvoiceId = invoice_id;
 
-      // Se não foi fornecida invoice_id, criar fatura automaticamente
-      if (!finalInvoiceId && credit_card_id) {
-        const mes = new Date(data_compra).getMonth() + 1;
-        const ano = new Date(data_compra).getFullYear();
-        const data_vencimento = new Date(ano, mes, 15); // Vencimento no dia 15
+    // Se não foi fornecida invoice_id, criar fatura automaticamente
+    if (!finalInvoiceId && credit_card_id) {
+      const mes = new Date(data_compra).getMonth() + 1;
+      const ano = new Date(data_compra).getFullYear();
+      const data_vencimento = new Date(ano, mes, 15); // Vencimento no dia 15
 
-        // Usar função RPC para criar fatura se não existir
-        const { data: invoiceId, error: rpcError } = await supabase
-          .rpc('create_invoice_if_not_exists', {
-            p_credit_card_id: credit_card_id,
-            p_mes: mes,
-            p_ano: ano,
+      // Usar função RPC para criar fatura se não existir
+      const { data: invoiceId, error: rpcError } = await supabase
+        .rpc('create_invoice_if_not_exists', {
+          p_credit_card_id: credit_card_id,
+          p_mes: mes,
+          p_ano: ano,
             p_data_vencimento: formatDateForDB(data_vencimento)
-          });
+        });
 
-        if (rpcError) {
-          console.error('Erro ao criar fatura automaticamente:', rpcError);
-          return res.status(500).json({ error: 'Erro ao criar fatura' });
-        }
-
-        finalInvoiceId = invoiceId;
+      if (rpcError) {
+        console.error('Erro ao criar fatura automaticamente:', rpcError);
+        return res.status(500).json({ error: 'Erro ao criar fatura' });
       }
 
-      if (!finalInvoiceId) {
-        return res.status(400).json({ error: 'ID da fatura é obrigatório' });
-      }
+      finalInvoiceId = invoiceId;
+    }
 
-      // Verificar se a fatura pertence ao usuário
-      const { data: invoice, error: invoiceError } = await supabase
-        .from('credit_card_invoices')
-        .select(`
+    if (!finalInvoiceId) {
+      return res.status(400).json({ error: 'ID da fatura é obrigatório' });
+    }
+
+    // Verificar se a fatura pertence ao usuário
+    const { data: invoice, error: invoiceError } = await supabase
+      .from('credit_card_invoices')
+      .select(`
+        id,
+        poupeja_credit_cards!inner(
           id,
-          poupeja_credit_cards!inner(
-            id,
-            user_id
-          )
-        `)
-        .eq('id', finalInvoiceId)
-        .eq('poupeja_credit_cards.user_id', userId)
-        .single();
+          user_id
+        )
+      `)
+      .eq('id', finalInvoiceId)
+      .eq('poupeja_credit_cards.user_id', userId)
+      .single();
 
-      if (invoiceError || !invoice) {
-        return res.status(404).json({ error: 'Fatura não encontrada' });
-      }
+    if (invoiceError || !invoice) {
+      return res.status(404).json({ error: 'Fatura não encontrada' });
+    }
 
-      // Criar despesa
-      const { data: newExpense, error: insertError } = await supabase
-        .from('credit_card_expenses')
-        .insert({
-          invoice_id: finalInvoiceId,
-          categoria_id,
-          nome,
-          valor,
-          data_compra,
-          observacao
-        })
-        .select(`
-          *,
-          poupeja_categories(
-            id,
-            name
-          )
-        `)
-        .single();
+    // Criar despesa
+    const { data: newExpense, error: insertError } = await supabase
+      .from('credit_card_expenses')
+      .insert({
+        invoice_id: finalInvoiceId,
+        categoria_id,
+        nome,
+        valor,
+        data_compra,
+        observacao
+      })
+      .select(`
+        *,
+        poupeja_categories(
+          id,
+          name
+        )
+      `)
+      .single();
 
-      if (insertError) {
-        console.error('Erro ao criar despesa:', insertError);
-        return res.status(500).json({ error: 'Erro ao criar despesa' });
-      }
+    if (insertError) {
+      console.error('Erro ao criar despesa:', insertError);
+      return res.status(500).json({ error: 'Erro ao criar despesa' });
+    }
 
-      res.status(201).json(newExpense);
+    res.status(201).json(newExpense);
     }
   } catch (error) {
     console.error('Erro no endpoint de criar despesa:', error);
