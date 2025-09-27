@@ -10,6 +10,7 @@ app.use(express.json());
 app.use(cors({
   origin: [
     'http://localhost:5173', 
+    'http://localhost:8080',
     'https://teugestor.com.br',
     'https://www.teugestor.com.br',
     'http://localhost:3000',
