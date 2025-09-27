@@ -9,13 +9,8 @@ const supabaseUrl = process.env.SUPABASE_URL!;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Interface para tipos
-interface AuthenticatedRequest extends express.Request {
-  user?: { id: string };
-}
-
 // GET /credit-cards/invoices - Listar faturas
-router.get('/invoices', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/invoices', authenticateToken, async (req: express.Request, res) => {
   try {
     const userId = (req as any).user?.id;
     if (!userId) {
@@ -67,7 +62,7 @@ router.get('/invoices', authenticateToken, async (req: AuthenticatedRequest, res
 });
 
 // POST /credit-cards/invoices - Criar fatura manualmente
-router.post('/invoices', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/invoices', authenticateToken, async (req: express.Request, res) => {
   try {
     const userId = (req as any).user?.id;
     if (!userId) {
@@ -133,7 +128,7 @@ router.post('/invoices', authenticateToken, async (req: AuthenticatedRequest, re
 });
 
 // GET /credit-cards/invoices/{id} - Detalhes da fatura
-router.get('/invoices/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.get('/invoices/:id', authenticateToken, async (req: express.Request, res) => {
   try {
     const userId = (req as any).user?.id;
     if (!userId) {
@@ -183,7 +178,7 @@ router.get('/invoices/:id', authenticateToken, async (req: AuthenticatedRequest,
 });
 
 // POST /credit-cards/expenses - Criar despesa
-router.post('/expenses', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.post('/expenses', authenticateToken, async (req: express.Request, res) => {
   try {
     const userId = (req as any).user?.id;
     if (!userId) {
@@ -285,7 +280,7 @@ router.post('/expenses', authenticateToken, async (req: AuthenticatedRequest, re
 });
 
 // PUT /credit-cards/expenses/{id} - Editar despesa
-router.put('/expenses/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.put('/expenses/:id', authenticateToken, async (req: express.Request, res) => {
   try {
     const userId = (req as any).user?.id;
     if (!userId) {
@@ -350,7 +345,7 @@ router.put('/expenses/:id', authenticateToken, async (req: AuthenticatedRequest,
 });
 
 // DELETE /credit-cards/expenses/{id} - Remover despesa
-router.delete('/expenses/:id', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.delete('/expenses/:id', authenticateToken, async (req: express.Request, res) => {
   try {
     const userId = (req as any).user?.id;
     if (!userId) {
@@ -399,7 +394,7 @@ router.delete('/expenses/:id', authenticateToken, async (req: AuthenticatedReque
 });
 
 // PUT /credit-cards/invoices/{id}/status - Atualizar status da fatura
-router.put('/invoices/:id/status', authenticateToken, async (req: AuthenticatedRequest, res) => {
+router.put('/invoices/:id/status', authenticateToken, async (req: express.Request, res) => {
   try {
     const userId = (req as any).user?.id;
     if (!userId) {
