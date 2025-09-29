@@ -336,7 +336,13 @@ const options = {
     ]
   },
   apis: [
-    './src/routes/*.ts',
+    './src/routes/auth.ts',
+    './src/routes/bankAccounts.ts',
+    './src/routes/creditCards.ts',
+    './src/routes/creditCardInvoices.ts',
+    './src/routes/transfers.ts',
+    './src/routes/linkedUsers.ts',
+    './src/routes/admin.ts',
     './src/index.ts'
   ]
 };
@@ -344,6 +350,9 @@ const options = {
 const specs = swaggerJsdoc(options);
 
 export const setupSwagger = (app: Express) => {
+  // Debug: verificar se as specs foram geradas
+  console.log('Swagger paths encontrados:', specs.paths ? Object.keys(specs.paths) : 'Nenhum path encontrado');
+  
   app.use('/api/swagger', swaggerUi.serve, swaggerUi.setup(specs, {
     explorer: true,
     customCss: '.swagger-ui .topbar { display: none }',
