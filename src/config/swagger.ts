@@ -351,7 +351,8 @@ const specs = swaggerJsdoc(options);
 
 export const setupSwagger = (app: Express) => {
   // Debug: verificar se as specs foram geradas
-  console.log('Swagger paths encontrados:', specs.paths ? Object.keys(specs.paths) : 'Nenhum path encontrado');
+  const swaggerSpecs = specs as any;
+  console.log('Swagger paths encontrados:', swaggerSpecs.paths ? Object.keys(swaggerSpecs.paths) : 'Nenhum path encontrado');
   
   app.use('/api/swagger', swaggerUi.serve, swaggerUi.setup(specs, {
     explorer: true,
