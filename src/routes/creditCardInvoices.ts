@@ -271,6 +271,10 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       return res.status(400).json({ error: 'Nome e valor são obrigatórios' });
     }
 
+    if (!categoria_id) {
+      return res.status(400).json({ error: 'Categoria é obrigatória' });
+    }
+
     // Validar dados específicos para compra parcelada
     if (is_parcelada === true || is_parcelada === 'true') {
       if (!numero_parcelas || numero_parcelas < 2 || numero_parcelas > 24) {
