@@ -298,6 +298,61 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       return res.status(400).json({ error: 'Cartão de crédito é obrigatório quando não há fatura específica' });
     }
 
+    // Validar se a fatura não está fechada (quando invoice_id é fornecido)
+    if (invoice_id) {
+      const { data: invoice, error: invoiceError } = await supabase
+        .from('credit_card_invoices')
+        .select(`
+          id,
+          mes,
+          ano,
+          status,
+          poupeja_credit_cards!inner(
+            id,
+            closing_day,
+            due_day
+          )
+        `)
+        .eq('id', invoice_id)
+        .eq('poupeja_credit_cards.user_id', userId)
+        .single();
+
+      if (invoiceError || !invoice) {
+        return res.status(404).json({ error: 'Fatura não encontrada' });
+      }
+
+      // Verificar se a fatura já foi paga
+      if (invoice.status === 'paga') {
+        return res.status(400).json({ 
+          error: `Não é possível adicionar despesas à fatura de ${invoice.mes.toString().padStart(2, '0')}/${invoice.ano} pois ela já foi paga` 
+        });
+      }
+
+      // Verificar se a fatura já fechou
+      const hoje = new Date();
+      const mesAtual = hoje.getMonth() + 1;
+      const anoAtual = hoje.getFullYear();
+      const diaAtual = hoje.getDate();
+      
+      const mesFatura = invoice.mes;
+      const anoFatura = invoice.ano;
+      const closingDay = invoice.poupeja_credit_cards.closing_day;
+
+      // Se estamos em um mês posterior ao da fatura, ela já fechou
+      if (anoAtual > anoFatura || (anoAtual === anoFatura && mesAtual > mesFatura)) {
+        return res.status(400).json({ 
+          error: `Não é possível adicionar despesas à fatura de ${mesFatura.toString().padStart(2, '0')}/${anoFatura} pois ela já fechou` 
+        });
+      }
+
+      // Se estamos no mesmo mês da fatura, verificar se já passou o dia de fechamento
+      if (anoAtual === anoFatura && mesAtual === mesFatura && diaAtual > closingDay) {
+        return res.status(400).json({ 
+          error: `Não é possível adicionar despesas à fatura de ${mesFatura.toString().padStart(2, '0')}/${anoFatura} pois ela já fechou no dia ${closingDay}` 
+        });
+      }
+    }
+
     // Validar dados específicos para compra parcelada
     if (is_parcelada === true || is_parcelada === 'true') {
       if (!numero_parcelas || numero_parcelas < 2 || numero_parcelas > 24) {
