@@ -479,21 +479,38 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       // Calcular data de vencimento usando o due_day do cartão
       const dataVencimento = new Date(anoFatura, mesFatura - 1, creditCard.due_day);
 
-      // Usar função RPC para criar fatura se não existir
-      const { data: invoiceId, error: rpcError } = await supabase
-        .rpc('create_invoice_if_not_exists', {
-          p_credit_card_id: credit_card_id,
-          p_mes: mesFatura,
-          p_ano: anoFatura,
-          p_data_vencimento: formatDateForDB(dataVencimento)
-        });
+      // Verificar se fatura já existe
+      const { data: existingInvoice } = await supabase
+        .from('credit_card_invoices')
+        .select('id')
+        .eq('credit_card_id', credit_card_id)
+        .eq('mes', mesFatura)
+        .eq('ano', anoFatura)
+        .single();
 
-      if (rpcError) {
-        console.error('Erro ao criar fatura automaticamente:', rpcError);
-        return res.status(500).json({ error: 'Erro ao criar fatura' });
+      if (existingInvoice) {
+        finalInvoiceId = existingInvoice.id;
+      } else {
+        // Criar nova fatura
+        const { data: newInvoice, error: invoiceError } = await supabase
+          .from('credit_card_invoices')
+          .insert({
+            credit_card_id,
+            mes: mesFatura,
+            ano: anoFatura,
+            data_vencimento: formatDateForDB(dataVencimento),
+            status: 'aberta'
+          })
+          .select('id')
+          .single();
+
+        if (invoiceError) {
+          console.error('Erro ao criar fatura automaticamente:', invoiceError);
+          return res.status(500).json({ error: 'Erro ao criar fatura' });
+        }
+
+        finalInvoiceId = newInvoice.id;
       }
-
-      finalInvoiceId = invoiceId;
     }
 
     if (!finalInvoiceId) {
@@ -544,7 +561,6 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
     }
 
     res.status(201).json(newExpense);
-    }
   } catch (error) {
     console.error('Erro no endpoint de criar despesa:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
