@@ -306,12 +306,18 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       const despesasCriadas = [];
 
       for (let i = 0; i < numero_parcelas; i++) {
-        // Calcular data da parcela
-        const dataParcela = new Date(data_primeira_parcela);
-        dataParcela.setMonth(dataParcela.getMonth() + i);
+        // Calcular data da parcela de forma mais robusta
+        const dataPrimeiraParcela = new Date(data_primeira_parcela);
+        const anoBase = dataPrimeiraParcela.getFullYear();
+        const mesBase = dataPrimeiraParcela.getMonth(); // 0-based
         
-        const mes = dataParcela.getMonth() + 1;
-        const ano = dataParcela.getFullYear();
+        // Calcular mês e ano da parcela atual
+        const mesParcela = mesBase + i;
+        const anoParcela = anoBase + Math.floor(mesParcela / 12);
+        const mesFinal = (mesParcela % 12) + 1; // Converter para 1-based
+        
+        const mes = mesFinal;
+        const ano = anoParcela;
 
         // Buscar ou criar fatura para o mês da parcela
         let invoiceId = null;
@@ -341,7 +347,7 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
           }
 
           // Criar nova fatura usando o due_day do cartão
-          const dataVencimento = new Date(ano, mes, creditCard.due_day);
+          const dataVencimento = new Date(ano, mes - 1, creditCard.due_day);
           
           const { data: newInvoice, error: invoiceError } = await supabase
             .from('credit_card_invoices')
@@ -369,6 +375,7 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
           : valorBaseParcela;
 
         // Criar despesa da parcela
+        const dataParcela = new Date(ano, mes - 1, new Date(data_primeira_parcela).getDate());
         const { data: newExpense, error: insertError } = await supabase
           .from('credit_card_expenses')
           .insert({
@@ -414,7 +421,7 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
     if (!finalInvoiceId && credit_card_id) {
       const mes = new Date(data_compra).getMonth() + 1;
       const ano = new Date(data_compra).getFullYear();
-      const data_vencimento = new Date(ano, mes, 15); // Vencimento no dia 15
+      const data_vencimento = new Date(ano, mes - 1, 15); // Vencimento no dia 15
 
       // Usar função RPC para criar fatura se não existir
       const { data: invoiceId, error: rpcError } = await supabase
