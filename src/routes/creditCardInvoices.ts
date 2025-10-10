@@ -345,18 +345,44 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       const despesasCriadas = [];
 
       for (let i = 0; i < numero_parcelas; i++) {
-        // Calcular data da parcela de forma mais robusta
+        // Calcular data da parcela considerando o closing_day do cartão
         const dataPrimeiraParcela = new Date(data_primeira_parcela);
-        const anoBase = dataPrimeiraParcela.getFullYear();
-        const mesBase = dataPrimeiraParcela.getMonth(); // 0-based
+        const diaPrimeiraParcela = dataPrimeiraParcela.getDate();
+        const mesPrimeiraParcela = dataPrimeiraParcela.getMonth() + 1; // 1-based
+        const anoPrimeiraParcela = dataPrimeiraParcela.getFullYear();
         
-        // Calcular mês e ano da parcela atual
-        const mesParcela = mesBase + i;
-        const anoParcela = anoBase + Math.floor(mesParcela / 12);
-        const mesFinal = (mesParcela % 12) + 1; // Converter para 1-based
+        // Determinar mês e ano da fatura baseado no closing_day
+        let mesFatura, anoFatura;
+        
+        if (diaPrimeiraParcela >= creditCard.closing_day) {
+          // Primeira parcela após o fechamento: vai para a fatura do próximo mês
+          mesFatura = mesPrimeiraParcela + 1;
+          anoFatura = anoPrimeiraParcela;
+          
+          // Ajustar para dezembro/janeiro
+          if (mesFatura > 12) {
+            mesFatura = 1;
+            anoFatura += 1;
+          }
+        } else {
+          // Primeira parcela antes do fechamento: vai para a fatura do mês atual
+          mesFatura = mesPrimeiraParcela;
+          anoFatura = anoPrimeiraParcela;
+        }
+        
+        // Calcular mês e ano da parcela atual (somando i meses)
+        const mesParcela = mesFatura + i;
+        const anoParcela = anoFatura + Math.floor((mesParcela - 1) / 12);
+        const mesFinal = ((mesParcela - 1) % 12) + 1; // Converter para 1-based
         
         const mes = mesFinal;
         const ano = anoParcela;
+
+        console.log(`=== PARCELA ${i + 1}/${numero_parcelas} ===`);
+        console.log('Data primeira parcela:', data_primeira_parcela);
+        console.log('Dia primeira parcela:', diaPrimeiraParcela);
+        console.log('Closing day:', creditCard.closing_day);
+        console.log('Mes/Ano calculado:', mes, ano);
 
         // Buscar ou criar fatura para o mês da parcela
         let invoiceId = null;
