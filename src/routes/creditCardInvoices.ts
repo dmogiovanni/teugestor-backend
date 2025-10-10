@@ -397,6 +397,13 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
 
         // Criar despesa da parcela
         const dataParcela = new Date(ano, mes - 1, new Date(data_primeira_parcela).getDate());
+        
+        console.log(`=== CRIANDO PARCELA ${i + 1}/${numero_parcelas} ===`);
+        console.log('invoiceId:', invoiceId);
+        console.log('categoria_id:', categoria_id);
+        console.log('valorParcela:', valorParcela);
+        console.log('dataParcela:', formatDateForDB(dataParcela));
+        
         const { data: newExpense, error: insertError } = await supabase
           .from('credit_card_expenses')
           .insert({
@@ -405,22 +412,15 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
             nome: `${nome} (${i + 1}/${numero_parcelas})`,
             valor: valorParcela,
             data_compra: formatDateForDB(dataParcela),
-            observacao: observacao ? `${observacao} - Parcela ${i + 1}/${numero_parcelas}` : `Parcela ${i + 1}/${numero_parcelas}`,
-            numero_parcela: `${i + 1}/${numero_parcelas}`,
-            parcela_total: numero_parcelas
+            observacao: observacao ? `${observacao} - Parcela ${i + 1}/${numero_parcelas}` : `Parcela ${i + 1}/${numero_parcelas}`
           })
-          .select(`
-            *,
-            poupeja_categories(
-              id,
-              name
-            )
-          `)
+          .select('*')
           .single();
 
         if (insertError) {
           console.error('Erro ao criar despesa da parcela:', insertError);
-          return res.status(500).json({ error: 'Erro ao criar despesa da parcela' });
+          console.error('Detalhes do erro:', JSON.stringify(insertError, null, 2));
+          return res.status(500).json({ error: 'Erro ao criar despesa da parcela', details: insertError });
         }
 
         despesasCriadas.push(newExpense);
