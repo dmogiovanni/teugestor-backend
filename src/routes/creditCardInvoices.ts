@@ -561,6 +561,7 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
     }
 
     res.status(201).json(newExpense);
+    }
   } catch (error) {
     console.error('Erro no endpoint de criar despesa:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
