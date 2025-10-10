@@ -307,6 +307,18 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       const numeroParcelas = numero_parcelas;
       const valorBaseParcela = Math.floor((valorTotal / numeroParcelas) * 100) / 100; // Arredonda para baixo
       const diferenca = valorTotal - (valorBaseParcela * numeroParcelas); // Calcula a diferença
+      // Buscar dados do cartão para obter closing_day e due_day
+      const { data: creditCard, error: cardError } = await supabase
+        .from('poupeja_credit_cards')
+        .select('closing_day, due_day')
+        .eq('id', credit_card_id)
+        .single();
+
+      if (cardError || !creditCard) {
+        console.error('Erro ao buscar cartão:', cardError);
+        return res.status(500).json({ error: 'Erro ao buscar dados do cartão' });
+      }
+
       const despesasCriadas = [];
 
       for (let i = 0; i < numero_parcelas; i++) {
@@ -338,18 +350,6 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
         if (existingInvoice) {
           invoiceId = existingInvoice.id;
         } else {
-          // Buscar dados do cartão para obter o due_day
-          const { data: creditCard, error: cardError } = await supabase
-            .from('poupeja_credit_cards')
-            .select('due_day')
-            .eq('id', credit_card_id)
-            .single();
-
-          if (cardError || !creditCard) {
-            console.error('Erro ao buscar cartão:', cardError);
-            return res.status(500).json({ error: 'Erro ao buscar dados do cartão' });
-          }
-
           // Criar nova fatura usando o due_day do cartão
           const dataVencimento = new Date(ano, mes - 1, creditCard.due_day);
           
@@ -423,17 +423,52 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
 
     // Se não foi fornecida invoice_id, criar fatura automaticamente
     if (!finalInvoiceId && credit_card_id) {
-      const mes = new Date(data_compra).getMonth() + 1;
-      const ano = new Date(data_compra).getFullYear();
-      const data_vencimento = new Date(ano, mes - 1, 15); // Vencimento no dia 15
+      // Buscar dados do cartão para obter closing_day e due_day
+      const { data: creditCard, error: cardError } = await supabase
+        .from('poupeja_credit_cards')
+        .select('closing_day, due_day')
+        .eq('id', credit_card_id)
+        .single();
+
+      if (cardError || !creditCard) {
+        console.error('Erro ao buscar cartão:', cardError);
+        return res.status(500).json({ error: 'Erro ao buscar dados do cartão' });
+      }
+
+      const dataCompra = new Date(data_compra);
+      const diaCompra = dataCompra.getDate();
+      const mesCompra = dataCompra.getMonth() + 1;
+      const anoCompra = dataCompra.getFullYear();
+
+      // Determinar mês e ano da fatura baseado no closing_day
+      let mesFatura, anoFatura;
+      
+      if (diaCompra >= creditCard.closing_day) {
+        // Compra após o fechamento: vai para a fatura do próximo mês
+        mesFatura = mesCompra + 1;
+        anoFatura = anoCompra;
+        
+        // Ajustar para dezembro/janeiro
+        if (mesFatura > 12) {
+          mesFatura = 1;
+          anoFatura += 1;
+        }
+      } else {
+        // Compra antes do fechamento: vai para a fatura do mês atual
+        mesFatura = mesCompra;
+        anoFatura = anoCompra;
+      }
+
+      // Calcular data de vencimento usando o due_day do cartão
+      const dataVencimento = new Date(anoFatura, mesFatura - 1, creditCard.due_day);
 
       // Usar função RPC para criar fatura se não existir
       const { data: invoiceId, error: rpcError } = await supabase
         .rpc('create_invoice_if_not_exists', {
           p_credit_card_id: credit_card_id,
-          p_mes: mes,
-          p_ano: ano,
-            p_data_vencimento: formatDateForDB(data_vencimento)
+          p_mes: mesFatura,
+          p_ano: anoFatura,
+          p_data_vencimento: formatDateForDB(dataVencimento)
         });
 
       if (rpcError) {
