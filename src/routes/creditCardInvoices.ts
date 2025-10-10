@@ -252,6 +252,10 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
 
+    console.log('=== DADOS RECEBIDOS ===');
+    console.log('Body completo:', JSON.stringify(req.body, null, 2));
+    console.log('User ID:', userId);
+
     const { 
       invoice_id, 
       categoria_id, 
@@ -266,6 +270,14 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       data_primeira_parcela
     } = req.body;
 
+    console.log('=== DADOS EXTRAÍDOS ===');
+    console.log('invoice_id:', invoice_id);
+    console.log('credit_card_id:', credit_card_id);
+    console.log('categoria_id:', categoria_id);
+    console.log('nome:', nome);
+    console.log('valor:', valor);
+    console.log('is_parcelada:', is_parcelada);
+
     // Validar dados obrigatórios
     if (!nome || !valor) {
       return res.status(400).json({ error: 'Nome e valor são obrigatórios' });
@@ -273,6 +285,11 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
 
     if (!categoria_id) {
       return res.status(400).json({ error: 'Categoria é obrigatória' });
+    }
+
+    // Validar cartão de crédito - obrigatório quando não há invoice_id
+    if (!invoice_id && !credit_card_id) {
+      return res.status(400).json({ error: 'Cartão de crédito é obrigatório quando não há fatura específica' });
     }
 
     // Validar dados específicos para compra parcelada
