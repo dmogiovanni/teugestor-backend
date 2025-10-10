@@ -21,11 +21,11 @@ router.use('/bank-accounts', bankAccountsRoutes);
 // Rotas de transferências
 router.use('/transfers', transfersRoutes);
 
-// Rotas de cartões de crédito
-router.use('/credit-cards', creditCardsRoutes);
-
-// Rotas de faturas e despesas de cartão de crédito
+// Rotas de faturas e despesas de cartão de crédito (mais específicas primeiro)
 router.use('/credit-cards', creditCardInvoicesRoutes);
+
+// Rotas de cartões de crédito (mais gerais depois)
+router.use('/credit-cards', creditCardsRoutes);
 
 // Rotas de autenticação
 router.use('/auth', authRoutes);

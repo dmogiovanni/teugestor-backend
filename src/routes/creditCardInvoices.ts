@@ -247,8 +247,14 @@ router.get('/invoices/:id', authenticateToken, async (req: express.Request, res)
 // POST /credit-cards/expenses - Criar despesa
 router.post('/expenses', authenticateToken, async (req: express.Request, res) => {
   try {
+    console.log('=== ROTA /expenses CHAMADA ===');
+    console.log('Headers:', req.headers);
+    console.log('Method:', req.method);
+    console.log('URL:', req.url);
+    
     const userId = (req as any).user?.id;
     if (!userId) {
+      console.log('ERRO: Usuário não autenticado');
       return res.status(401).json({ error: 'Usuário não autenticado' });
     }
 
