@@ -340,7 +340,7 @@ router.post('/expenses', authenticateToken, async (req: express.Request, res) =>
       
       const mesFatura = invoice.mes;
       const anoFatura = invoice.ano;
-      const closingDay = invoice.poupeja_credit_cards.closing_day;
+      const closingDay = (invoice.poupeja_credit_cards as any)?.closing_day || 1;
 
       // Se estamos em um mês posterior ao da fatura, ela já fechou
       if (anoAtual > anoFatura || (anoAtual === anoFatura && mesAtual > mesFatura)) {
@@ -909,14 +909,6 @@ router.post('/invoices/pay', authenticateToken, async (req: express.Request, res
 
     const { invoice_id, bank_account_id, category_id, payment_date } = req.body;
 
-    console.log('Dados recebidos para pagamento:', {
-      invoice_id,
-      bank_account_id,
-      category_id,
-      payment_date,
-      userId
-    });
-
     // Validações
     if (!invoice_id || !bank_account_id || !category_id || !payment_date) {
       return res.status(400).json({ 
@@ -969,13 +961,8 @@ router.post('/invoices/pay', authenticateToken, async (req: express.Request, res
       .single();
 
     if (categoryError || !category) {
-      console.error('Erro ao buscar categoria:', categoryError);
-      console.log('category_id buscado:', category_id);
-      console.log('userId:', userId);
       return res.status(404).json({ error: 'Categoria não encontrada' });
     }
-
-    console.log('Categoria encontrada:', { id: category.id, name: category.name, type: category.type, user_id: category.user_id });
 
     // Verificar se a categoria é do tipo 'expense'
     if (category.type !== 'expense') {
