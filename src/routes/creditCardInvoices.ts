@@ -82,7 +82,9 @@ router.get('/invoices', authenticateToken, async (req: express.Request, res) => 
           id,
           name,
           brand,
-          user_id
+          user_id,
+          closing_day,
+          due_day
         ),
         credit_card_expenses(
           id,
@@ -213,7 +215,9 @@ router.get('/invoices/:id', authenticateToken, async (req: express.Request, res)
           id,
           name,
           brand,
-          user_id
+          user_id,
+          closing_day,
+          due_day
         ),
         credit_card_expenses(
           id,
@@ -905,6 +909,14 @@ router.post('/invoices/pay', authenticateToken, async (req: express.Request, res
 
     const { invoice_id, bank_account_id, category_id, payment_date } = req.body;
 
+    console.log('Dados recebidos para pagamento:', {
+      invoice_id,
+      bank_account_id,
+      category_id,
+      payment_date,
+      userId
+    });
+
     // Validações
     if (!invoice_id || !bank_account_id || !category_id || !payment_date) {
       return res.status(400).json({ 
@@ -948,17 +960,22 @@ router.post('/invoices/pay', authenticateToken, async (req: express.Request, res
       return res.status(404).json({ error: 'Conta bancária não encontrada' });
     }
 
-    // Verificar se a categoria existe e pertence ao usuário
+    // Verificar se a categoria existe e pertence ao usuário ou é uma categoria global
     const { data: category, error: categoryError } = await supabase
       .from('poupeja_categories')
       .select('*')
       .eq('id', category_id)
-      .eq('user_id', userId)
+      .or(`user_id.eq.${userId},user_id.is.null`)
       .single();
 
     if (categoryError || !category) {
+      console.error('Erro ao buscar categoria:', categoryError);
+      console.log('category_id buscado:', category_id);
+      console.log('userId:', userId);
       return res.status(404).json({ error: 'Categoria não encontrada' });
     }
+
+    console.log('Categoria encontrada:', { id: category.id, name: category.name, type: category.type, user_id: category.user_id });
 
     // Verificar se a categoria é do tipo 'expense'
     if (category.type !== 'expense') {

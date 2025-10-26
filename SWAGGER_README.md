@@ -126,3 +126,4 @@ router.get('/nova-rota', authenticateToken, async (req, res) => {
   // Implementação da rota
 });
 ```
+
